@@ -13,3 +13,11 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

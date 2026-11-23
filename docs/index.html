@@ -1435,19 +1435,22 @@
     const textEnc = new TextEncoder();
     const textDec = new TextDecoder();
 
+    const WASM_URL = "./cipher.wasm?v=2";
+    const isStaticHost = /github\.io|vercel\.app|netlify\.app|pages\.dev/.test(location.hostname) || location.protocol === "file:";
+
     async function initWasmFallback() {
       if (wasmExports) return true;
       try {
         let mod;
         if (WebAssembly.instantiateStreaming) {
           try {
-            mod = await WebAssembly.instantiateStreaming(fetch("./cipher.wasm"), {});
+            mod = await WebAssembly.instantiateStreaming(fetch(WASM_URL), {});
           } catch (_) {
-            const bytes = await (await fetch("./cipher.wasm")).arrayBuffer();
+            const bytes = await (await fetch(WASM_URL)).arrayBuffer();
             mod = await WebAssembly.instantiate(bytes, {});
           }
         } else {
-          const bytes = await (await fetch("./cipher.wasm")).arrayBuffer();
+          const bytes = await (await fetch(WASM_URL)).arrayBuffer();
           mod = await WebAssembly.instantiate(bytes, {});
         }
         wasmExports = mod.instance.exports;
@@ -2274,16 +2277,30 @@
     async function boot() {
       buildHero3DCylinder();
       bindTiltCards();
+      renderSidebar();
+      renderLandingCatalog({
+        ciphers: CIPHERS.flatMap((g) => g.items.map((it) => ({
+          id: it.id,
+          name: it.name,
+          category: g.group,
+          era: it.era,
+          formula: it.badge,
+          vulnerability: it.desc
+        })))
+      });
+
       let loaded = false;
-      try {
-        const [presetsRes, infoRes] = await Promise.all([fetch("/api/presets"), fetch("/api/info")]);
-        if (presetsRes.ok && infoRes.ok) {
-          const arr = await presetsRes.json();
-          arr.forEach((p) => { state.presets[p.id] = p; });
-          state.info = await infoRes.json();
-          loaded = true;
-        }
-      } catch (_) {}
+      if (!isStaticHost) {
+        try {
+          const [presetsRes, infoRes] = await Promise.all([fetch("/api/presets"), fetch("/api/info")]);
+          if (presetsRes.ok && infoRes.ok) {
+            const arr = await presetsRes.json();
+            arr.forEach((p) => { state.presets[p.id] = p; });
+            state.info = await infoRes.json();
+            loaded = true;
+          }
+        } catch (_) {}
+      }
 
       if (!loaded && await initWasmFallback()) {
         const arr = JSON.parse(readWasmOut(wasmExports.wasm_presets()));
@@ -2292,7 +2309,6 @@
       }
 
       if (state.info) renderLandingCatalog(state.info);
-      renderSidebar();
       selectCipher("caesar", false);
     }
 
