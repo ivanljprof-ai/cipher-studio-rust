@@ -1,0 +1,2302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <script>
+  try {
+    document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light";
+  } catch (_) {}
+  </script>
+  <title>Cipher Studio · Criptografía Clásica 3D en Rust</title>
+  <style>
+    :root {
+      --bg-light: #F6F7FA;
+      --bg-dark: #000000;
+      --surface-light: #FFFFFF;
+      --surface-dark: #1C1C1E;
+      --group-light: #EEF0F5;
+      --group-dark: #2C2C2E;
+      --pearl-light: #FAFBFD;
+      --pearl-dark: #242426;
+      --text-primary-light: #1D1D1F;
+      --text-primary-dark: #F5F5F7;
+      --text-secondary-light: #636369;
+      --text-secondary-dark: #98989D;
+      --text-tertiary-light: #86868B;
+      --text-tertiary-dark: #6E6E73;
+      --glass-light: rgba(255, 255, 255, 0.84);
+      --glass-dark: rgba(28, 28, 30, 0.8);
+      --border-light: rgba(15, 23, 42, 0.08);
+      --border-dark: rgba(255, 255, 255, 0.1);
+      --shadow-light: 0 22px 48px -18px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.03);
+      --shadow-dark: 0 22px 48px -18px rgba(0, 0, 0, 0.65);
+
+      --apple-blue: #0071E3;
+      --apple-mint: #30D158;
+      --apple-indigo: #5E5CE6;
+      --apple-sky: #EBF4FF;
+
+      --bg: var(--bg-light);
+      --surface: var(--surface-light);
+      --group: var(--group-light);
+      --pearl: var(--pearl-light);
+      --text-primary: var(--text-primary-light);
+      --text-secondary: var(--text-secondary-light);
+      --text-tertiary: var(--text-tertiary-light);
+      --glass: var(--glass-light);
+      --border: var(--border-light);
+      --shadow-card: var(--shadow-light);
+      --scrollbar-thumb: #B6B9C4;
+      --scrollbar-track: #EEF0F5;
+
+      color-scheme: light dark;
+      accent-color: var(--apple-blue);
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: var(--bg-dark);
+        --surface: var(--surface-dark);
+        --group: var(--group-dark);
+        --pearl: var(--pearl-dark);
+        --text-primary: var(--text-primary-dark);
+        --text-secondary: var(--text-secondary-dark);
+        --text-tertiary: var(--text-tertiary-dark);
+        --glass: var(--glass-dark);
+        --border: var(--border-dark);
+        --shadow-card: var(--shadow-dark);
+        --scrollbar-thumb: #6E6E73;
+        --scrollbar-track: #1C1C1E;
+      }
+    }
+
+    @supports (color: light-dark(white, black)) {
+      :root {
+        --bg: light-dark(var(--bg-light), var(--bg-dark));
+        --surface: light-dark(var(--surface-light), var(--surface-dark));
+        --group: light-dark(var(--group-light), var(--group-dark));
+        --pearl: light-dark(var(--pearl-light), var(--pearl-dark));
+        --text-primary: light-dark(var(--text-primary-light), var(--text-primary-dark));
+        --text-secondary: light-dark(var(--text-secondary-light), var(--text-secondary-dark));
+        --text-tertiary: light-dark(var(--text-tertiary-light), var(--text-tertiary-dark));
+        --glass: light-dark(var(--glass-light), var(--glass-dark));
+        --border: light-dark(var(--border-light), var(--border-dark));
+        --scrollbar-thumb: light-dark(#B6B9C4, #6E6E73);
+        --scrollbar-track: light-dark(#EEF0F5, #1C1C1E);
+      }
+    }
+
+    :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+      color-scheme: dark;
+      --shadow-card: var(--shadow-dark);
+    }
+
+    :root:has(> head > meta[name="color-scheme"][content="light"]) {
+      color-scheme: light;
+      --shadow-card: var(--shadow-light);
+    }
+
+    .theme-opt-light { display: none; }
+    .theme-opt-dark { display: inline-flex; align-items: center; gap: 6px; }
+    @media (prefers-color-scheme: dark) {
+      .theme-opt-dark { display: none; }
+      .theme-opt-light { display: inline-flex; align-items: center; gap: 6px; }
+    }
+    :root:has(> head > meta[name="color-scheme"][content="dark"]) .theme-opt-dark { display: none; }
+    :root:has(> head > meta[name="color-scheme"][content="dark"]) .theme-opt-light { display: inline-flex; align-items: center; gap: 6px; }
+    :root:has(> head > meta[name="color-scheme"][content="light"]) .theme-opt-light { display: none; }
+    :root:has(> head > meta[name="color-scheme"][content="light"]) .theme-opt-dark { display: inline-flex; align-items: center; gap: 6px; }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(960px 440px at 12% -6%, rgba(0, 113, 227, 0.08), transparent 62%),
+        radial-gradient(820px 400px at 88% 2%, rgba(48, 209, 88, 0.06), transparent 60%);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      background: var(--glass);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border-bottom: 1px solid var(--border);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+
+    .topbar-inner {
+      max-width: 1420px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      background: linear-gradient(180deg, #2790F7 0%, #0071E3 100%);
+      color: #FFFFFF;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 6px 14px rgba(0, 113, 227, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+    }
+
+    .brand h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+    .brand-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    .nav-pills {
+      display: inline-flex;
+      background: var(--group);
+      border-radius: 16px;
+      padding: 4px;
+      gap: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .nav-pill {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: 12px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .nav-pill.active {
+      background: var(--surface);
+      color: var(--text-primary);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+    }
+
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--apple-mint); }
+
+    .btn-ghost {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-primary);
+      border-radius: 999px;
+      padding: 8px 15px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-ghost:hover { background: var(--group); transform: translateY(-1px); }
+
+    .btn-primary {
+      appearance: none;
+      border: none;
+      background: linear-gradient(180deg, #1F89F4 0%, #0071E3 100%);
+      color: #FFFFFF;
+      border-radius: 14px;
+      padding: 11px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(0, 113, 227, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0, 113, 227, 0.32); }
+
+    .view {
+      display: none;
+      max-width: 1420px;
+      margin: 0 auto;
+      padding: 24px 24px 56px;
+    }
+    .view.active { display: block; animation: fadeSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===================================================================== */
+    /* LANDING / INICIO DEL PROYECTO                                         */
+    /* ===================================================================== */
+    .landing-hero {
+      background: var(--surface);
+      border-radius: 28px;
+      padding: 36px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.95fr);
+      gap: 32px;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 960px) { .landing-hero { grid-template-columns: 1fr; padding: 26px; } }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(0, 113, 227, 0.09);
+      color: var(--apple-blue);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .landing-title { margin: 0; font-size: clamp(30px, 4vw, 44px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.08; }
+    .landing-lead { margin: 16px 0 24px; font-size: 16px; line-height: 1.6; color: var(--text-secondary); max-width: 60ch; }
+    .landing-cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+    /* Interactive 3D Hero Rotor Stage */
+    .hero-3d-stage {
+      height: 310px;
+      perspective: 1100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: radial-gradient(circle at 50% 42%, rgba(0, 113, 227, 0.1), var(--pearl) 72%);
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      cursor: grab;
+      user-select: none;
+    }
+    .hero-3d-stage:active { cursor: grabbing; }
+
+    .hero-3d-hint {
+      position: absolute;
+      bottom: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--glass);
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+    }
+
+    .hero-3d-rig {
+      transform-style: preserve-3d;
+      transform: rotateX(-16deg) rotateY(-20deg);
+      transition: transform 0.18s ease-out;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .hero-wheel {
+      width: 54px;
+      height: 170px;
+      position: relative;
+      transform-style: preserve-3d;
+      cursor: pointer;
+      transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .hero-wheel-face {
+      position: absolute;
+      inset: 58px 0;
+      height: 54px;
+      border-radius: 11px;
+      background: linear-gradient(180deg, #FFFFFF 0%, #ECEEF5 100%);
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      color: var(--text-primary);
+      display: grid;
+      place-items: center;
+      font-family: ui-monospace, "SF Mono", monospace;
+      font-size: 20px;
+      font-weight: 700;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 4px 10px rgba(0, 0, 0, 0.05);
+      backface-visibility: hidden;
+    }
+
+    .hero-wheel-face.accent {
+      background: linear-gradient(180deg, #2790F7 0%, #0071E3 100%);
+      color: #FFFFFF;
+      border-color: transparent;
+    }
+
+    .hero-wheel-face.mint {
+      background: linear-gradient(180deg, #42DC6A 0%, #30D158 100%);
+      color: #FFFFFF;
+      border-color: transparent;
+    }
+
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 920px) { .arch-grid { grid-template-columns: 1fr; } }
+
+    .tilt-card {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      transform-style: preserve-3d;
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
+    }
+    .tilt-card:hover { box-shadow: 0 26px 52px -18px rgba(0, 113, 227, 0.14); }
+
+    .arch-kicker { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--apple-blue); margin-bottom: 8px; }
+    .arch-title { margin: 0 0 8px; font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+    .arch-body { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-secondary); }
+
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 8px 4px 16px; flex-wrap: wrap; }
+    .section-head h2 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.03em; }
+
+    .catalog-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 1080px) { .catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 680px) { .catalog-grid { grid-template-columns: 1fr; } }
+
+    .cat-card {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.35s ease;
+    }
+    .cat-card:hover { transform: translateY(-4px); border-color: rgba(0, 113, 227, 0.35); }
+    .cat-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .cat-tag { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--group); color: var(--text-secondary); }
+    .cat-formula { font-family: ui-monospace, "SF Mono", monospace; font-size: 12px; padding: 8px 10px; border-radius: 10px; background: var(--pearl); border: 1px solid var(--border); color: var(--apple-indigo); }
+
+    /* ===================================================================== */
+    /* LABORATORIO CRIPTOGRAFICO                                             */
+    /* ===================================================================== */
+    .shell { display: grid; grid-template-columns: 288px minmax(0, 1fr); gap: 20px; align-items: start; }
+    @media (max-width: 980px) { .shell { grid-template-columns: 1fr; } }
+
+    .sidebar {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-card);
+      position: sticky;
+      top: 82px;
+      max-height: calc(100vh - 104px);
+      overflow-y: auto;
+    }
+    @media (max-width: 980px) { .sidebar { position: static; max-height: none; } }
+
+    .sidebar-search-wrap { padding: 8px 8px 6px; }
+    .sidebar-search { width: 100%; border: 1px solid var(--border); background: var(--group); color: var(--text-primary); border-radius: 12px; padding: 9px 12px; font-size: 13px; font-family: inherit; outline: none; }
+    .sidebar-search:focus { border-color: var(--apple-blue); background: var(--surface); }
+    .sidebar-group-title { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-tertiary); padding: 12px 12px 6px; }
+
+    .cipher-item {
+      width: 100%; border: none; background: transparent; color: var(--text-primary); border-radius: 16px;
+      padding: 10px 12px; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;
+      font-family: inherit; transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .cipher-item:hover { background: var(--group); }
+    .cipher-item.active { background: linear-gradient(180deg, #1F89F4 0%, #0071E3 100%); color: #FFFFFF; box-shadow: 0 6px 14px rgba(0, 113, 227, 0.24); }
+    .cipher-item.active .cipher-era { color: rgba(255, 255, 255, 0.85); }
+    .cipher-badge { width: 32px; height: 32px; border-radius: 10px; background: var(--group); color: var(--text-primary); display: grid; place-items: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+    .cipher-item.active .cipher-badge { background: rgba(255, 255, 255, 0.22); color: #FFFFFF; }
+    .cipher-name { font-size: 14px; font-weight: 600; }
+    .cipher-era { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+
+    .bento { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    @media (max-width: 1120px) { .bento { grid-template-columns: 1fr; } }
+
+    .tile {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    }
+    .tile-hero { grid-column: 1 / -1; }
+
+    .hero-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+    .hero-title { margin: 0; font-size: 28px; font-weight: 750; letter-spacing: -0.03em; line-height: 1.15; }
+    .hero-desc { margin: 6px 0 0; font-size: 14px; color: var(--text-secondary); max-width: 68ch; line-height: 1.5; }
+
+    /* Challenge Scenarios Strip */
+    .challenges-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      background: var(--pearl);
+      border: 1px solid var(--border);
+    }
+    .challenges-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-right: 4px; }
+    .challenge-pill {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-primary);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .challenge-pill:hover { border-color: var(--apple-blue); color: var(--apple-blue); transform: translateY(-1px); }
+    .challenge-pill.active { background: var(--apple-blue); color: #FFFFFF; border-color: transparent; }
+
+    .segmented-shell { display: inline-flex; background: var(--group); border-radius: 16px; padding: 4px; gap: 4px; }
+    .seg-btn {
+      appearance: none; border: none; background: transparent; color: var(--text-secondary); border-radius: 12px;
+      padding: 8px 16px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .seg-btn.active { background: var(--surface); color: var(--text-primary); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
+    .seg-btn.active[data-action="solve"] { background: linear-gradient(180deg, #6E6CEB 0%, #5E5CE6 100%); color: #FFFFFF; }
+
+    .controls-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .params-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; background: var(--group); border-radius: 16px; padding: 8px; margin-bottom: 16px; }
+    .param-field { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 10px; padding: 7px 12px; border: 1px solid var(--border); flex: 1 1 220px; }
+    .param-field label { font-size: 12px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+    .param-field input { width: 100%; border: none; background: transparent; color: var(--text-primary); font-size: 14px; font-weight: 500; font-family: inherit; outline: none; }
+
+    .io-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 820px) { .io-grid { grid-template-columns: 1fr; } }
+
+    .io-shell { background: var(--group); border-radius: 16px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .io-bar { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px 0; }
+    .io-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+    .mini-actions { display: flex; align-items: center; gap: 6px; }
+
+    .btn-mini {
+      appearance: none; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
+      border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-mini:hover { background: var(--apple-blue); color: #FFFFFF; border-color: var(--apple-blue); }
+
+    textarea.code-area, pre.output-box {
+      width: 100%; min-height: 136px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
+      border-radius: 10px; padding: 14px; font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+      font-size: 14px; line-height: 1.55; margin: 0; resize: vertical; outline: none; white-space: pre-wrap; word-break: break-word;
+    }
+    textarea.code-area:focus { border-color: var(--apple-blue); }
+
+    .tile-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .tile-title { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+    .tile-sub { font-size: 12px; color: var(--text-secondary); }
+
+    /* ===================================================================== */
+    /* INTERACTIVE 3D VISUALIZER SCENES                                      */
+    /* ===================================================================== */
+    .viz-stage {
+      background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.8), var(--group) 82%);
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 290px;
+      overflow-x: auto;
+      perspective: 1100px;
+      position: relative;
+      border: 1px solid var(--border);
+    }
+
+    .orbit-hint {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    /* Interactive 3D Alberti Disk */
+    .alberti-wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px; perspective: 950px; }
+    .alberti-svg {
+      width: 268px; height: 268px;
+      filter: drop-shadow(0 16px 26px rgba(15, 23, 42, 0.12));
+      transform: rotateX(12deg);
+      cursor: grab;
+      touch-action: none;
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .alberti-svg:active { cursor: grabbing; }
+    .alberti-inner-ring { transform-origin: 150px 150px; transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+    .alberti-letter-hit { cursor: pointer; }
+
+    /* Interactive 3D Jefferson Cylinder */
+    .jeff-scene { perspective: 1000px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: grab; user-select: none; }
+    .jeff-scene:active { cursor: grabbing; }
+    .jeff-drum {
+      display: flex; gap: 6px; padding: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(232,235,244,0.85));
+      border-radius: 18px; border: 1px solid var(--border);
+      transform-style: preserve-3d;
+      box-shadow: 0 20px 36px -14px rgba(15, 23, 42, 0.14);
+      overflow-x: auto; max-width: 100%;
+      transition: transform 0.2s ease-out;
+    }
+    .jeff-disk {
+      display: flex; flex-direction: column; gap: 4px; align-items: center;
+      background: var(--surface); padding: 6px 4px; border-radius: 11px; border: 1px solid var(--border);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+    .jeff-step-btn {
+      appearance: none; border: none; background: var(--group); color: var(--text-secondary);
+      border-radius: 6px; width: 26px; height: 18px; font-size: 10px; cursor: pointer;
+    }
+    .jeff-step-btn:hover { background: var(--apple-blue); color: #FFFFFF; }
+    .jeff-cell {
+      width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center;
+      font-family: ui-monospace, "SF Mono", monospace; font-size: 12px; font-weight: 700;
+      background: var(--pearl); color: var(--text-secondary); cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .jeff-cell:hover { background: rgba(0, 113, 227, 0.12); color: var(--apple-blue); }
+    .jeff-cell.focal {
+      background: linear-gradient(180deg, #42DC6A 0%, #30D158 100%);
+      color: #FFFFFF; transform: scale(1.12) translateZ(12px);
+      box-shadow: 0 6px 14px rgba(48, 209, 88, 0.32);
+    }
+
+    /* Interactive 3D Spartan Scytale */
+    .scytale-scene { perspective: 950px; height: 224px; width: 100%; display: grid; place-items: center; overflow: hidden; cursor: grab; touch-action: none; }
+    .scytale-scene:active { cursor: grabbing; }
+    .scytale-rod { position: relative; width: 320px; height: 58px; transform-style: preserve-3d; transition: transform 0.15s ease-out; }
+    .scytale-face {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 14px;
+      background: linear-gradient(180deg, #FFFFFF 0%, #ECEEF4 100%);
+      border: 1px solid rgba(15, 23, 42, 0.1); border-radius: 10px;
+      font-family: ui-monospace, "SF Mono", monospace; font-weight: 700; font-size: 14px; color: var(--text-primary);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95); backface-visibility: hidden; cursor: pointer;
+    }
+    .scytale-face.selected { border-color: var(--apple-blue); background: linear-gradient(180deg, #F0F7FF 0%, #DCEBFF 100%); }
+    .scytale-face-tag { font-size: 10px; color: var(--apple-blue); font-weight: 800; }
+
+    /* Interactive 3D Cardano Grille */
+    .cardano-3d-wrap { perspective: 1000px; display: grid; place-items: center; padding: 14px 8px; cursor: grab; touch-action: none; }
+    .cardano-3d-wrap:active { cursor: grabbing; }
+    .cardano-3d-stack { position: relative; transform-style: preserve-3d; transition: transform 0.25s ease-out; }
+    .cardano-grille-layer {
+      transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-style: preserve-3d; padding: 10px; border-radius: 18px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1.5px solid rgba(0, 113, 227, 0.28);
+      box-shadow: 0 20px 38px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    }
+
+    /* Interactive 3D Matrix & Digram Tiles */
+    .matrix-grid { display: grid; gap: 6px; justify-content: start; transform-style: preserve-3d; }
+    .matrix-cell {
+      min-width: 38px; height: 38px; padding: 0 8px; border-radius: 10px;
+      background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center;
+      font-family: ui-monospace, "SF Mono", monospace; font-size: 14px; font-weight: 700;
+      box-shadow: 0 3px 0 rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+      cursor: pointer; transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .matrix-cell:hover { transform: translateY(-3px) translateZ(10px); border-color: var(--apple-blue); }
+    .matrix-cell.header { background: var(--pearl); color: var(--apple-blue); font-size: 11px; height: 28px; }
+    .matrix-cell.hole { background: linear-gradient(180deg, #2790F7 0%, #0071E3 100%); color: #FFFFFF; border-color: transparent; transform: translateZ(14px); box-shadow: 0 8px 16px rgba(0, 113, 227, 0.26); }
+    .matrix-cell.mint { background: linear-gradient(180deg, #42DC6A 0%, #30D158 100%); color: #FFFFFF; border-color: transparent; transform: translateZ(16px); box-shadow: 0 8px 16px rgba(48, 209, 88, 0.28); }
+    .matrix-cell.orbit { background: rgba(94, 92, 230, 0.14); border-color: var(--apple-indigo); color: var(--apple-indigo); transform: translateZ(8px); }
+    .matrix-cell.masked { opacity: 0.3; }
+
+    /* Digram / IC interactive chips */
+    .chip-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .step-chip {
+      border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
+      border-radius: 9px; padding: 5px 10px; font-family: ui-monospace, "SF Mono", monospace;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .step-chip:hover, .step-chip.active { background: var(--apple-blue); color: #FFFFFF; border-color: transparent; transform: translateY(-1px); }
+
+    /* Vigenere 3D IC Bars */
+    .ic-bars { display: flex; align-items: flex-end; gap: 8px; height: 110px; padding: 12px 10px 6px; background: var(--surface); border-radius: 14px; border: 1px solid var(--border); margin-top: 12px; }
+    .ic-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; cursor: pointer; }
+    .ic-bar {
+      width: 100%; max-width: 28px; border-radius: 7px 7px 3px 3px;
+      background: linear-gradient(180deg, #A5CEF9 0%, #6FB1F7 100%);
+      transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .ic-bar.peak { background: linear-gradient(180deg, #42DC6A 0%, #30D158 100%); box-shadow: 0 4px 12px rgba(48, 209, 88, 0.3); }
+    .ic-lbl { font-size: 10px; font-weight: 700; color: var(--text-secondary); }
+
+    /* Pigpen 3D Keycaps */
+    .pigpen-stream { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+    .pigpen-chip {
+      width: 44px; height: 48px; border-radius: 12px;
+      background: linear-gradient(180deg, var(--surface) 0%, var(--pearl) 100%);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 0 rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px;
+      cursor: pointer; color: var(--text-primary); transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .pigpen-chip:hover { border-color: var(--apple-blue); transform: translateY(-2px); }
+    .pigpen-chip:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06); }
+    .pigpen-chip span { font-size: 10px; color: var(--text-secondary); font-weight: 700; }
+    .pigpen-space { width: 14px; }
+
+    /* Invisible Ink UV Lens */
+    .uv-surface {
+      position: relative;
+      background: var(--surface); border-radius: 14px; padding: 20px; border: 1px solid var(--border);
+      font-size: 15px; line-height: 1.75; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+      overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .uv-surface.uv-active {
+      background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+      color: #E2E8F0; border-color: var(--apple-indigo);
+    }
+    .uv-lens-spot {
+      position: absolute;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(94, 92, 230, 0.25) 0%, rgba(48, 209, 88, 0.14) 45%, transparent 72%);
+      border: 1px solid rgba(94, 92, 230, 0.35);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .uv-surface:hover .uv-lens-spot { opacity: 1; }
+    .uv-secret-pill {
+      display: inline-block; margin: 0 4px; padding: 2px 10px; border-radius: 8px;
+      background: rgba(48, 209, 88, 0.2); color: #199E3E;
+      font-family: ui-monospace, "SF Mono", monospace; font-size: 13px; font-weight: 700;
+    }
+    .uv-surface.uv-active .uv-secret-pill { color: #42DC6A; }
+
+    .acrostic-line { display: flex; align-items: baseline; gap: 10px; padding: 7px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); margin-bottom: 6px; font-size: 14px; }
+    .acrostic-initial { width: 26px; height: 26px; border-radius: 7px; background: var(--apple-blue); color: #FFFFFF; display: inline-grid; place-items: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+
+    .sub-table { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 6px; }
+    .sub-pair {
+      background: var(--surface); border-radius: 10px; padding: 6px 4px; text-align: center;
+      border: 1px solid var(--border); box-shadow: 0 2px 0 rgba(15, 23, 42, 0.04);
+      font-family: ui-monospace, "SF Mono", monospace; font-size: 12px; cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .sub-pair:hover { transform: translateY(-2px); border-color: var(--apple-blue); }
+    .sub-pair .top { color: var(--text-secondary); font-size: 11px; }
+    .sub-pair .bot { color: var(--apple-blue); font-weight: 700; margin-top: 2px; }
+
+    /* Cryptanalysis Tile */
+    .explain-banner { background: var(--group); border-radius: 14px; padding: 12px 14px; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .latency-tag { font-family: ui-monospace, "SF Mono", monospace; font-size: 11px; font-weight: 600; color: #199E3E; background: var(--surface); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); flex-shrink: 0; }
+    .cand-list { display: flex; flex-direction: column; gap: 8px; max-height: 310px; overflow-y: auto; }
+    .cand-row { background: var(--pearl); border-radius: 14px; padding: 10px 12px; border: 1px solid var(--border); cursor: pointer; transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1); }
+    .cand-row:hover { border-color: var(--apple-blue); transform: translateX(2px); }
+    .cand-row.best { border-color: var(--apple-mint); background: rgba(48, 209, 88, 0.07); }
+    .cand-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .cand-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .cand-row.best .cand-label { color: #199E3E; }
+    .cand-score { font-size: 11px; font-family: ui-monospace, "SF Mono", monospace; color: var(--text-tertiary); }
+    .cand-text { font-family: ui-monospace, "SF Mono", monospace; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    progress.conf-bar { width: 100%; height: 5px; margin-top: 6px; accent-color: var(--apple-blue); }
+
+    .range-bar { display: flex; align-items: center; gap: 10px; background: var(--surface); padding: 8px 14px; border-radius: 12px; border: 1px solid var(--border); width: 100%; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-top: 8px; }
+    .range-bar input[type="range"] { flex: 1; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand" id="brandHome" role="button" tabindex="0">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="3"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>Cipher Studio</h1>
+          <div class="brand-sub">Criptografía Clásica 3D · Motor Rust Nativo</div>
+        </div>
+      </div>
+
+      <nav class="nav-pills" aria-label="Vistas del proyecto">
+        <button class="nav-pill active" type="button" data-view="home">Inicio · El Proyecto</button>
+        <button class="nav-pill" type="button" data-view="lab">Laboratorio Criptográfico</button>
+      </nav>
+
+      <div class="topbar-actions">
+        <span class="pill-badge">
+          <span class="status-dot"></span>
+          13 Cifrados · 0 Deps Rust
+        </span>
+        <button id="themeToggle" class="btn-ghost" type="button" title="Alternar apariencia">
+          <span class="theme-opt-dark">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            Oscuro
+          </span>
+          <span class="theme-opt-light">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            Claro
+          </span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- VIEW 1: PÁGINA INICIAL EXPLICATIVA -->
+  <section id="viewHome" class="view active">
+    <div class="landing-hero">
+      <div>
+        <div class="eyebrow">Rust 2024 · Estándar Puro · Objetos 3D Manipulables</div>
+        <h2 class="landing-title">Trece siglos de cifrados clásicos, interactivos en 3D.</h2>
+        <p class="landing-lead">
+          <strong>Cipher Studio</strong> combina un motor criptográfico escrito íntegramente en <strong>Rust nativo</strong> con mecanismos físicos interactivos en 3D: gira discos, rota bastones espartanos, desliza rotores Jefferson, proyecta luz UV y crackea textos cifrados automáticamente con múltiples retos históricos.
+        </p>
+        <div class="landing-cta">
+          <button id="btnGoLab" class="btn-primary" type="button">Abrir Laboratorio Criptográfico →</button>
+          <button id="btnQuickCrack" class="btn-ghost" type="button">Demo: Crackear Vigenère</button>
+          <button id="btnQuickCardano" class="btn-ghost" type="button">Demo: Rejilla Cardano 3D</button>
+        </div>
+      </div>
+
+      <div id="hero3dStage" class="hero-3d-stage" title="Arrastra para orbitar · Pulsa un anillo para girarlo">
+        <div id="hero3dRig" class="hero-3d-rig"></div>
+        <span class="hero-3d-hint">Arrastra para rotar en 3D · Pulsa los anillos</span>
+      </div>
+    </div>
+
+    <div class="arch-grid">
+      <article class="tilt-card">
+        <div class="arch-kicker">01 · Motor Rust Nativo</div>
+        <h3 class="arch-title">Cero Dependencias Externas</h3>
+        <p class="arch-body">
+          Los 13 cifrados, el parser JSON y el servidor HTTP multihilo corren en <code>std</code> puro de Rust 2024 en microsegundos.
+        </p>
+      </article>
+      <article class="tilt-card">
+        <div class="arch-kicker">02 · Criptoanálisis Automático</div>
+        <h3 class="arch-title">Retos Multinivel ES + EN</h3>
+        <p class="arch-body">
+          Cada algoritmo potente incluye retos históricos listos para cifrar o crackear mediante Índice de Coincidencia, fuerza bruta de permutaciones y Hill-Climbing 5×5.
+        </p>
+      </article>
+      <article class="tilt-card">
+        <div class="arch-kicker">03 · Objetos 3D Interactivos</div>
+        <h3 class="arch-title">Manipulación Directa</h3>
+        <p class="arch-body">
+          Arrastra el Disco de Alberti, gira cada rotor del Cilindro de Jefferson, orbita la Escítala Espartana, reproduce los 4 giros de Cardano o pasa la lupa UV.
+        </p>
+      </article>
+    </div>
+
+    <div class="section-head">
+      <h2>Explora los 13 Cifrados del Proyecto</h2>
+      <span class="tile-sub">Pulsa cualquiera para abrir su laboratorio 3D y galería de retos</span>
+    </div>
+    <div id="catalogGrid" class="catalog-grid"></div>
+  </section>
+
+  <!-- VIEW 2: LABORATORIO CRIPTOGRÁFICO -->
+  <section id="viewLab" class="view">
+    <div class="shell">
+      <aside class="sidebar" aria-label="Selector de cifrados">
+        <div class="sidebar-search-wrap">
+          <input id="cipherFilter" class="sidebar-search" type="search" placeholder="Filtrar los 13 cifrados…" autocomplete="off">
+        </div>
+        <div id="cipherList"></div>
+      </aside>
+
+      <section class="bento">
+        <article class="tile tile-hero">
+          <div class="hero-head">
+            <div>
+              <h2 id="cipherTitle" class="hero-title">Cifrado César</h2>
+              <p id="cipherDesc" class="hero-desc"></p>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <button id="btnSamplePlain" class="btn-ghost" type="button">Ejemplo a Cifrar</button>
+              <button id="btnSampleCrack" class="btn-ghost" type="button">Ejemplo a Resolver</button>
+            </div>
+          </div>
+
+          <div id="challengesBar" class="challenges-bar" style="display:none;"></div>
+
+          <div class="controls-row">
+            <div class="segmented-shell" role="tablist" aria-label="Modo de operación">
+              <button class="seg-btn active" type="button" data-action="encrypt">Cifrar</button>
+              <button class="seg-btn" type="button" data-action="decrypt">Descifrar</button>
+              <button class="seg-btn" type="button" data-action="solve">Resolver / Crackear</button>
+            </div>
+            <button id="btnRun" class="btn-primary" type="button">Ejecutar en Rust</button>
+          </div>
+
+          <div id="paramsBar" class="params-bar">
+            <div id="keyField" class="param-field">
+              <label id="keyLabel" for="keyInput">Clave</label>
+              <input id="keyInput" type="text" placeholder="Clave o parámetro…">
+            </div>
+            <div id="paramField" class="param-field">
+              <label id="paramLabel" for="paramInput">Ajuste</label>
+              <input id="paramInput" type="text" placeholder="Valor numérico…">
+            </div>
+          </div>
+
+          <div class="io-grid">
+            <div class="io-shell">
+              <div class="io-bar">
+                <span class="io-label">Entrada</span>
+                <div class="mini-actions">
+                  <button id="btnClear" class="btn-mini" type="button">Limpiar</button>
+                </div>
+              </div>
+              <textarea id="inputText" class="code-area" spellcheck="false" placeholder="Escribe o pega el texto aquí…"></textarea>
+            </div>
+
+            <div class="io-shell">
+              <div class="io-bar">
+                <span class="io-label">Resultado</span>
+                <div class="mini-actions">
+                  <button id="btnSwap" class="btn-mini" type="button" title="Mover resultado a entrada">↳ Usar como Entrada</button>
+                  <button id="btnCopy" class="btn-mini" type="button">Copiar</button>
+                </div>
+              </div>
+              <pre id="outputText" class="output-box"></pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="tile">
+          <div class="tile-title-row">
+            <div>
+              <h3 class="tile-title">Laboratorio Visual 3D</h3>
+              <div id="vizSubtitle" class="tile-sub">Objeto 3D manipulable conectado al motor Rust</div>
+            </div>
+            <div id="vizControls" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+          </div>
+          <div id="vizStage" class="viz-stage"></div>
+        </article>
+
+        <article class="tile">
+          <div class="tile-title-row">
+            <div>
+              <h3 class="tile-title">Criptoanálisis &amp; Candidatos</h3>
+              <div class="tile-sub">Ranking heurístico bilingüe ES/EN desde Rust</div>
+            </div>
+          </div>
+          <div class="explain-banner">
+            <span id="explainText">Selecciona una operación para inspeccionar el análisis.</span>
+            <span id="latencyBadge" class="latency-tag">0.0 ms</span>
+          </div>
+          <div id="candidatesList" class="cand-list"></div>
+        </article>
+      </section>
+    </div>
+  </section>
+
+  <script>
+    const CIPHERS = [
+      {
+        group: "Sustitución Monoalfabética",
+        items: [
+          {
+            id: "caesar", name: "Cifrado César", era: "~50 a.C. · Roma", badge: "C₃",
+            desc: "Desplaza cada letra del alfabeto un número fijo de posiciones. Pulsa cualquier letra de la tabla inferior para ajustar el desplazamiento en vivo.",
+            keyLabel: "Desplazamiento", keyPlaceholder: "3", paramLabel: null
+          },
+          {
+            id: "atbash", name: "Cifrado Atbash", era: "~500 a.C. · Hebreo", badge: "A⇄Z",
+            desc: "Sustitución especular simétrica: la primera letra se intercambia por la última (A⇄Z, B⇄Y, ..., M⇄N).",
+            keyLabel: null, paramLabel: null
+          },
+          {
+            id: "pigpen", name: "Cifrado Pigpen", era: "S. XVIII · Francmasón", badge: "⊔·",
+            desc: "Sustituye letras por fragmentos geométricos de cuadrículas y aspas X. Pulsa el teclado masónico 3D abajo para componer o descifrar símbolos.",
+            keyLabel: null, paramLabel: null
+          }
+        ]
+      },
+      {
+        group: "Polialfabéticos & Rotores",
+        items: [
+          {
+            id: "alberti", name: "Disco de Alberti", era: "1467 · Renacimiento", badge: "◎",
+            desc: "Arrastra el anillo interior con el ratón o pulsa cualquier letra para girar físicamente el disco 3D y recalcular el cifrado al instante.",
+            keyLabel: "Letra índice / clave", keyPlaceholder: "K", paramLabel: "Girar cada N letras", paramPlaceholder: "4"
+          },
+          {
+            id: "vigenere", name: "Cifrado de Vigenère", era: "1553 · Polialfabético", badge: "Vₖ",
+            desc: "Aplica desplazamientos gobernados por clave. Observa el espectro 3D del Índice de Coincidencia abajo mientras Rust recupera la clave.",
+            keyLabel: "Palabra clave", keyPlaceholder: "CLAVE", paramLabel: null
+          },
+          {
+            id: "playfair", name: "Cifrado Playfair", era: "1854 · Dígrafos 5×5", badge: "5×5",
+            desc: "Cifra pares de letras sobre una matriz 5×5 (I/J unidas). Pulsa cualquier dígrafo abajo para elevar las celdas implicadas en el cubo 3D.",
+            keyLabel: "Clave de matriz", keyPlaceholder: "MONARQUIA", paramLabel: null
+          },
+          {
+            id: "jefferson", name: "Cilindro de Jefferson", era: "1795 · 36 Rotores", badge: "▥",
+            desc: "Arrastra para orbitar el tambor 3D o pulsa cualquier fila/botón ▲▼ para girar los discos y alinear la generatriz ganadora en verde.",
+            keyLabel: "Semilla de discos", keyPlaceholder: "JEFFERSON1795", paramLabel: "Desplazamiento fila", paramPlaceholder: "6"
+          }
+        ]
+      },
+      {
+        group: "Transposición & Geometría",
+        items: [
+          {
+            id: "scytale", name: "Escítala Espartana", era: "~400 a.C. · Esparta", badge: "∥",
+            desc: "Arrastra la vara espartana en 3D libremente o ajusta sus caras (+/-) para ver cómo se enrolla la cinta de cuero alrededor del bastón.",
+            keyLabel: null, paramLabel: "Caras de la vara", paramPlaceholder: "4"
+          },
+          {
+            id: "rail_fence", name: "Rail Fence (De Valla)", era: "Clásico · Zig-Zag", badge: "∿",
+            desc: "Escribe el mensaje en onda zig-zag. Usa +/- Raíles o pulsa ▶ Recorrer Onda para animar el trazo 3D sobre los raíles.",
+            keyLabel: null, paramLabel: "Número de raíles", paramPlaceholder: "3"
+          },
+          {
+            id: "columnar", name: "Transposición por Columnas", era: "Clásico · Permutación", badge: "▤",
+            desc: "Pulsa las cabeceras de columna (#1, #2...) para elevar esa columna en 3D. En Resolver, Rust crackea permutaciones de hasta 6 columnas.",
+            keyLabel: "Palabra clave", keyPlaceholder: "CLAVE", paramLabel: null
+          },
+          {
+            id: "cardano", name: "Rejilla de Cardano", era: "1550 · Giro 90°", badge: "⊞",
+            desc: "Arrastra la rejilla 3D, pulsa ▶ Animar 4 Giros o haz clic en cualquier celda para ver su órbita simétrica a 0°, 90°, 180° y 270°.",
+            keyLabel: "Semilla rejilla", keyPlaceholder: "CARDANO", paramLabel: "Tamaño (4, 6, 8…)", paramPlaceholder: "6"
+          }
+        ]
+      },
+      {
+        group: "Esteganografía & Ocultación",
+        items: [
+          {
+            id: "invisible_ink", name: "Tinta Invisible", era: "Zero-Width Unicode", badge: "◌",
+            desc: "Mueve el cursor como linterna UV sobre la carta o enciende la Luz UV completa para revelar los bytes ocultos en Unicode Zero-Width.",
+            keyLabel: "Texto portador visible", keyPlaceholder: "Buenos días, te envío los apuntes.", paramLabel: null
+          },
+          {
+            id: "acrostic", name: "Acrósticos", era: "Literario · Estego", badge: "¶",
+            desc: "Genera versos cuyas iniciales ocultan el mensaje o extrae simultáneamente acrósticos, notarikon, telésticos y mesósticos.",
+            keyLabel: null, paramLabel: "Modo (lines/words)", paramPlaceholder: "lines"
+          }
+        ]
+      }
+    ];
+
+    const PIGPEN_CHARS = [
+      "┘","⊔","└","⊐","□","⊏","┐","⊓","┌",
+      "┘·","⊔·","└·","⊐·","□·","⊏·","┐·","⊓·","┌·",
+      "∨",">","<","∧","∨·",">·","<·","∧·"
+    ];
+
+    function pigpenSvgNode(letterIdx, size = 22) {
+      const ns = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("width", String(size));
+      svg.setAttribute("height", String(size));
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "2.2");
+      svg.setAttribute("stroke-linecap", "round");
+      svg.setAttribute("stroke-linejoin", "round");
+
+      const path = document.createElementNS(ns, "path");
+      let d = "";
+      let dot = false;
+      let dotX = 12, dotY = 12;
+
+      if (letterIdx < 18) {
+        const cell = letterIdx % 9;
+        dot = letterIdx >= 9;
+        const r = Math.floor(cell / 3);
+        const c = cell % 3;
+        if (r > 0) d += " M4 4 L20 4";
+        if (r < 2) d += " M4 20 L20 20";
+        if (c > 0) d += " M4 4 L4 20";
+        if (c < 2) d += " M20 4 L20 20";
+      } else {
+        const sub = (letterIdx - 18) % 4;
+        dot = letterIdx >= 22;
+        if (sub === 0) { d = "M4 5 L12 19 L20 5"; dotY = 10; }
+        else if (sub === 1) { d = "M5 4 L19 12 L5 20"; dotX = 10; }
+        else if (sub === 2) { d = "M19 4 L5 12 L19 20"; dotX = 14; }
+        else { d = "M4 19 L12 5 L20 19"; dotY = 14; }
+      }
+      path.setAttribute("d", d.trim());
+      svg.appendChild(path);
+
+      if (dot) {
+        const circle = document.createElementNS(ns, "circle");
+        circle.setAttribute("cx", String(dotX));
+        circle.setAttribute("cy", String(dotY));
+        circle.setAttribute("r", "2");
+        circle.setAttribute("fill", "currentColor");
+        circle.setAttribute("stroke", "none");
+        svg.appendChild(circle);
+      }
+      return svg;
+    }
+
+    const state = {
+      view: "home",
+      cipher: "caesar",
+      action: "encrypt",
+      presets: {},
+      info: null,
+      lastOutput: null,
+      activeChallengeIdx: 0,
+      cardanoRotation: 0,
+      cardanoTilt: { rx: 20, ry: -8 },
+      cardanoTimer: null,
+      cardanoOrbitCell: null,
+      scytaleRot: { rx: 18, ry: -16 },
+      scytaleSelectedFace: -1,
+      jeffRot: { rx: 10, ry: 0 },
+      playfairSelectedStep: -1,
+      columnarSelectedCol: -1,
+      railAnimStep: -1,
+      railTimer: null,
+      albertiTimer: null,
+      uvReveal: false
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function clearTimers() {
+      if (state.cardanoTimer) { clearInterval(state.cardanoTimer); state.cardanoTimer = null; }
+      if (state.railTimer) { clearInterval(state.railTimer); state.railTimer = null; }
+      if (state.albertiTimer) { clearInterval(state.albertiTimer); state.albertiTimer = null; }
+    }
+
+    // Light-first Theme Management
+    function currentSystemDark() { return window.matchMedia("(prefers-color-scheme: dark)").matches; }
+    function currentRenderedTheme() {
+      const content = document.querySelector('meta[name="color-scheme"]').getAttribute("content");
+      if (content === "dark" || content === "light") return content;
+      return currentSystemDark() ? "dark" : "light";
+    }
+
+    $("themeToggle").addEventListener("click", () => {
+      const target = currentRenderedTheme() === "dark" ? "light" : "dark";
+      try { localStorage.setItem("color-scheme", target); } catch (_) {}
+      document.querySelector('meta[name="color-scheme"]').setAttribute("content", target);
+    });
+
+    window.addEventListener("storage", (e) => {
+      if (e.key === "color-scheme" && e.newValue) {
+        document.querySelector('meta[name="color-scheme"]').setAttribute("content", e.newValue);
+      }
+    });
+
+    function switchView(viewName) {
+      state.view = viewName;
+      $("viewHome").classList.toggle("active", viewName === "home");
+      $("viewLab").classList.toggle("active", viewName === "lab");
+      document.querySelectorAll(".nav-pill").forEach((p) => {
+        p.classList.toggle("active", p.dataset.view === viewName);
+      });
+      if (viewName === "lab" && !state.lastOutput) {
+        selectCipher(state.cipher, true);
+      }
+    }
+
+    document.querySelectorAll(".nav-pill").forEach((pill) => {
+      pill.addEventListener("click", () => switchView(pill.dataset.view));
+    });
+
+    $("brandHome").addEventListener("click", () => switchView("home"));
+    $("btnGoLab").addEventListener("click", () => switchView("lab"));
+    $("btnQuickCrack").addEventListener("click", () => {
+      switchView("lab");
+      selectCipher("vigenere", false);
+      applyChallenge(0);
+    });
+    $("btnQuickCardano").addEventListener("click", () => {
+      switchView("lab");
+      selectCipher("cardano", false);
+      applyChallenge(0);
+    });
+
+    // Interactive 3D Hero Sculpture (Drag Orbit + Clickable Spinning Rings)
+    function buildHero3DCylinder() {
+      const rig = $("hero3dRig");
+      const stage = $("hero3dStage");
+      rig.replaceChildren();
+      const letters = ["C","I","F","R","A","R","U","S","T","3","D","X"];
+      const cols = ["R","U","S","T","3"];
+      const wheelAngles = [0, 0, 0, 0, 0];
+
+      cols.forEach((highlight, wIdx) => {
+        const wheel = document.createElement("div");
+        wheel.className = "hero-wheel";
+        for (let f = 0; f < 8; f++) {
+          const face = document.createElement("div");
+          face.className = "hero-wheel-face";
+          if (f === 0 && wIdx < 4) face.classList.add("accent");
+          else if (f === 0 && wIdx === 4) face.classList.add("mint");
+          face.style.transform = `rotateX(${f * 45}deg) translateZ(72px)`;
+          face.textContent = f === 0 ? highlight : letters[(wIdx * 3 + f) % letters.length];
+          wheel.appendChild(face);
+        }
+        wheel.addEventListener("click", (e) => {
+          e.stopPropagation();
+          wheelAngles[wIdx] -= 45;
+          wheel.style.transform = `rotateX(${wheelAngles[wIdx]}deg)`;
+        });
+        rig.appendChild(wheel);
+      });
+
+      let dragging = false, sx = 0, sy = 0, rx = -16, ry = -20;
+      stage.addEventListener("pointerdown", (e) => {
+        dragging = true; sx = e.clientX; sy = e.clientY;
+        stage.setPointerCapture(e.pointerId);
+      });
+      stage.addEventListener("pointermove", (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - sx; const dy = e.clientY - sy;
+        sx = e.clientX; sy = e.clientY;
+        ry = Math.max(-55, Math.min(55, ry + dx * 0.45));
+        rx = Math.max(-45, Math.min(45, rx - dy * 0.45));
+        rig.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+      });
+      const stopDrag = () => { dragging = false; };
+      stage.addEventListener("pointerup", stopDrag);
+      stage.addEventListener("pointercancel", stopDrag);
+    }
+
+    function bindTiltCards() {
+      document.querySelectorAll(".tilt-card").forEach((card) => {
+        card.addEventListener("mousemove", (e) => {
+          const r = card.getBoundingClientRect();
+          const x = (e.clientX - r.left) / r.width - 0.5;
+          const y = (e.clientY - r.top) / r.height - 0.5;
+          card.style.transform = `perspective(900px) rotateX(${(-y * 5).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg) translateY(-2px)`;
+        });
+        card.addEventListener("mouseleave", () => { card.style.transform = ""; });
+      });
+    }
+
+    function renderLandingCatalog(info) {
+      const grid = $("catalogGrid");
+      grid.replaceChildren();
+      if (!info || !info.ciphers) return;
+      info.ciphers.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "cat-card";
+        const top = document.createElement("div");
+        top.className = "cat-top";
+        const cat = document.createElement("span");
+        cat.className = "cat-tag";
+        cat.textContent = item.category;
+        const era = document.createElement("span");
+        era.className = "tile-sub";
+        era.textContent = item.era;
+        top.append(cat, era);
+
+        const title = document.createElement("h3");
+        title.className = "arch-title";
+        title.textContent = item.name;
+        const formula = document.createElement("div");
+        formula.className = "cat-formula";
+        formula.textContent = item.formula;
+        const vuln = document.createElement("p");
+        vuln.className = "arch-body";
+        vuln.style.fontSize = "13px";
+        vuln.textContent = item.vulnerability;
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn-ghost";
+        btn.style.marginTop = "auto";
+        btn.style.alignSelf = "flex-start";
+        btn.textContent = "Probar Retos y 3D →";
+        btn.addEventListener("click", () => {
+          switchView("lab");
+          selectCipher(item.id, true);
+        });
+        card.append(top, title, formula, vuln, btn);
+        grid.appendChild(card);
+      });
+    }
+
+    function findCipherDef(id) {
+      for (const g of CIPHERS) {
+        for (const item of g.items) { if (item.id === id) return item; }
+      }
+      return CIPHERS[0].items[0];
+    }
+
+    function renderSidebar(filterText = "") {
+      const container = $("cipherList");
+      container.replaceChildren();
+      const q = filterText.trim().toLowerCase();
+      for (const grp of CIPHERS) {
+        const matched = grp.items.filter(
+          (c) => !q || c.name.toLowerCase().includes(q) || c.era.toLowerCase().includes(q)
+        );
+        if (!matched.length) continue;
+        const title = document.createElement("div");
+        title.className = "sidebar-group-title";
+        title.textContent = grp.group;
+        container.appendChild(title);
+
+        for (const item of matched) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "cipher-item" + (item.id === state.cipher ? " active" : "");
+          btn.addEventListener("click", () => selectCipher(item.id, true));
+
+          const badge = document.createElement("div");
+          badge.className = "cipher-badge";
+          badge.textContent = item.badge;
+          const meta = document.createElement("div");
+          const nm = document.createElement("div");
+          nm.className = "cipher-name";
+          nm.textContent = item.name;
+          const era = document.createElement("div");
+          era.className = "cipher-era";
+          era.textContent = item.era;
+          meta.append(nm, era);
+
+          btn.append(badge, meta);
+          container.appendChild(btn);
+        }
+      }
+    }
+
+    function renderChallengesBar() {
+      const bar = $("challengesBar");
+      bar.replaceChildren();
+      const preset = state.presets[state.cipher];
+      const challenges = preset && preset.challenges ? preset.challenges : [];
+      if (!challenges.length) {
+        bar.style.display = "none";
+        return;
+      }
+      bar.style.display = "flex";
+      const lbl = document.createElement("span");
+      lbl.className = "challenges-lbl";
+      lbl.textContent = "Retos listos:";
+      bar.appendChild(lbl);
+
+      challenges.forEach((ch, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "challenge-pill" + (idx === state.activeChallengeIdx ? " active" : "");
+        btn.textContent = ch.title;
+        btn.addEventListener("click", () => applyChallenge(idx));
+        bar.appendChild(btn);
+      });
+    }
+
+    function applyChallenge(idx) {
+      const preset = state.presets[state.cipher];
+      if (!preset || !preset.challenges || !preset.challenges[idx]) return;
+      state.activeChallengeIdx = idx;
+      const ch = preset.challenges[idx];
+      const mode = ch.mode === "solve" ? "solve" : "encrypt";
+      setAction(mode);
+
+      if (mode === "encrypt") {
+        $("keyInput").value = ch.key;
+        $("paramInput").value = ch.param;
+        $("inputText").value = ch.plain;
+      } else {
+        $("inputText").value = ch.cipher;
+        if (state.cipher === "jefferson") {
+          $("keyInput").value = ch.key;
+          $("paramInput").value = "";
+        } else if (state.cipher === "cardano") {
+          $("paramInput").value = ch.param;
+          $("keyInput").value = "";
+        } else {
+          $("keyInput").value = "";
+          $("paramInput").value = "";
+        }
+      }
+      renderChallengesBar();
+      runCipher();
+    }
+
+    function selectCipher(id, autoRun = true) {
+      clearTimers();
+      state.cipher = id;
+      state.activeChallengeIdx = 0;
+      state.cardanoRotation = 0;
+      state.cardanoOrbitCell = null;
+      state.playfairSelectedStep = -1;
+      state.columnarSelectedCol = -1;
+      state.scytaleSelectedFace = -1;
+      state.railAnimStep = -1;
+
+      const def = findCipherDef(id);
+      const preset = state.presets[id];
+
+      $("cipherTitle").textContent = def.name;
+      $("cipherDesc").textContent = def.desc;
+
+      if (def.keyLabel) {
+        $("keyField").style.display = "flex";
+        $("keyLabel").textContent = def.keyLabel;
+        $("keyInput").placeholder = def.keyPlaceholder || "";
+        $("keyInput").value = preset ? preset.key : (def.keyPlaceholder || "");
+      } else {
+        $("keyField").style.display = "none";
+        $("keyInput").value = "";
+      }
+
+      if (def.paramLabel) {
+        $("paramField").style.display = "flex";
+        $("paramLabel").textContent = def.paramLabel;
+        $("paramInput").placeholder = def.paramPlaceholder || "";
+        $("paramInput").value = preset ? preset.param : (def.paramPlaceholder || "");
+      } else {
+        $("paramField").style.display = "none";
+        $("paramInput").value = "";
+      }
+
+      $("paramsBar").style.display = (!def.keyLabel && !def.paramLabel) ? "none" : "flex";
+      renderChallengesBar();
+
+      if (preset && preset.challenges && preset.challenges[0]) {
+        const first = preset.challenges[0];
+        if (autoRun) {
+          applyChallenge(0);
+          renderSidebar($("cipherFilter").value);
+          return;
+        }
+        $("inputText").value = first.plain;
+      }
+      renderSidebar($("cipherFilter").value);
+      if (autoRun) runCipher();
+    }
+
+    function setAction(action) {
+      state.action = action;
+      document.querySelectorAll(".seg-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.action === action);
+      });
+    }
+
+    let wasmExports = null;
+    let useWasm = false;
+    const textEnc = new TextEncoder();
+    const textDec = new TextDecoder();
+
+    async function initWasmFallback() {
+      if (wasmExports) return true;
+      try {
+        let mod;
+        if (WebAssembly.instantiateStreaming) {
+          try {
+            mod = await WebAssembly.instantiateStreaming(fetch("./cipher.wasm"), {});
+          } catch (_) {
+            const bytes = await (await fetch("./cipher.wasm")).arrayBuffer();
+            mod = await WebAssembly.instantiate(bytes, {});
+          }
+        } else {
+          const bytes = await (await fetch("./cipher.wasm")).arrayBuffer();
+          mod = await WebAssembly.instantiate(bytes, {});
+        }
+        wasmExports = mod.instance.exports;
+        useWasm = true;
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function readWasmOut(ptr) {
+      const len = wasmExports.wasm_out_len();
+      return textDec.decode(new Uint8Array(wasmExports.memory.buffer, ptr, len));
+    }
+
+    function runWasmCipher(payload) {
+      const encoded = textEnc.encode(JSON.stringify(payload));
+      const ptr = wasmExports.wasm_alloc(encoded.length);
+      new Uint8Array(wasmExports.memory.buffer, ptr, encoded.length).set(encoded);
+      const outPtr = wasmExports.wasm_cipher(ptr, encoded.length);
+      wasmExports.wasm_free(ptr, encoded.length);
+      return JSON.parse(readWasmOut(outPtr));
+    }
+
+    async function runCipher() {
+      const payload = {
+        cipher: state.cipher,
+        action: state.action,
+        text: $("inputText").value,
+        key: $("keyInput").value,
+        param: $("paramInput").value
+      };
+      const t0 = performance.now();
+      try {
+        let data;
+        let ok = true;
+        if (useWasm) {
+          data = runWasmCipher(payload);
+          ok = !data.error;
+        } else {
+          const res = await fetch("/api/cipher", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          ok = res.ok;
+          data = await res.json();
+        }
+        const dt = (performance.now() - t0).toFixed(1);
+        $("latencyBadge").textContent = `${dt} ms · ${useWasm ? "Rust WASM" : "Rust"}`;
+        if (!ok) {
+          $("outputText").textContent = data.error || "Error ejecutando operación";
+          $("explainText").textContent = data.error || "Error";
+          return;
+        }
+        state.lastOutput = data;
+        $("outputText").textContent = data.result ?? "";
+        $("explainText").textContent = data.explanation ?? "";
+        renderCandidates(data.candidates || []);
+        renderVisualizer(data);
+      } catch (err) {
+        if (!useWasm && await initWasmFallback()) {
+          return runCipher();
+        }
+        $("outputText").textContent = "Error de conexión con el motor Rust: " + err.message;
+      }
+    }
+
+    function renderCandidates(cands) {
+      const box = $("candidatesList");
+      box.replaceChildren();
+      if (!cands.length) {
+        const empty = document.createElement("div");
+        empty.className = "tile-sub";
+        empty.style.padding = "12px 4px";
+        empty.textContent = "Selecciona «Resolver / Crackear» o uno de los Retos listos para ver el análisis automático.";
+        box.appendChild(empty);
+        return;
+      }
+      const maxScore = Math.max(...cands.map((c) => c.score));
+      const minScore = Math.min(...cands.map((c) => c.score));
+      const span = Math.max(0.01, maxScore - minScore);
+
+      cands.forEach((cand, idx) => {
+        const row = document.createElement("div");
+        row.className = "cand-row" + (idx === 0 ? " best" : "");
+        row.addEventListener("click", () => { $("outputText").textContent = cand.text; });
+        const top = document.createElement("div");
+        top.className = "cand-top";
+        const lbl = document.createElement("span");
+        lbl.className = "cand-label";
+        lbl.textContent = (idx === 0 ? "★ " : "") + cand.label;
+        const sc = document.createElement("span");
+        sc.className = "cand-score";
+        sc.textContent = `score ${cand.score.toFixed(2)}`;
+        top.append(lbl, sc);
+        const txt = document.createElement("div");
+        txt.className = "cand-text";
+        txt.textContent = cand.text;
+        const bar = document.createElement("progress");
+        bar.className = "conf-bar";
+        bar.max = 100;
+        bar.value = Math.round(((cand.score - minScore) / span) * 100);
+        row.append(top, txt, bar);
+        box.appendChild(row);
+      });
+    }
+
+    function bindDragOrbit(el, stateObj, onUpdate) {
+      let dragging = false, sx = 0, sy = 0;
+      el.addEventListener("pointerdown", (e) => {
+        if (e.target.closest("button") || e.target.closest("input") || e.target.closest(".jeff-cell")) return;
+        dragging = true; sx = e.clientX; sy = e.clientY;
+        el.setPointerCapture(e.pointerId);
+      });
+      el.addEventListener("pointermove", (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - sx; const dy = e.clientY - sy;
+        sx = e.clientX; sy = e.clientY;
+        stateObj.ry += dx * 0.55;
+        stateObj.rx = Math.max(-50, Math.min(50, stateObj.rx - dy * 0.55));
+        onUpdate();
+      });
+      const stop = () => { dragging = false; };
+      el.addEventListener("pointerup", stop);
+      el.addEventListener("pointercancel", stop);
+    }
+
+    function renderVisualizer(data) {
+      const stage = $("vizStage");
+      const ctrls = $("vizControls");
+      const sub = $("vizSubtitle");
+      stage.replaceChildren();
+      ctrls.replaceChildren();
+
+      const cipher = data.cipher;
+      const grid = data.grid;
+      const meta = data.meta || {};
+
+      // 1) PIGPEN
+      if (cipher === "pigpen") {
+        sub.textContent = "Teclado Masónico 3D · pulsa los glifos para escribir";
+        const letters = (meta.glyph_letters || "").toUpperCase();
+        const stream = document.createElement("div");
+        stream.className = "pigpen-stream";
+        for (const ch of letters) {
+          if (ch === " ") {
+            const sp = document.createElement("div");
+            sp.className = "pigpen-space";
+            stream.appendChild(sp);
+          } else if (ch >= "A" && ch <= "Z") {
+            const idx = ch.charCodeAt(0) - 65;
+            const chip = document.createElement("div");
+            chip.className = "pigpen-chip";
+            chip.appendChild(pigpenSvgNode(idx, 20));
+            const s = document.createElement("span");
+            s.textContent = ch;
+            chip.appendChild(s);
+            stream.appendChild(chip);
+          }
+        }
+        stage.appendChild(stream);
+
+        const pad = document.createElement("div");
+        pad.className = "pigpen-stream";
+        for (let i = 0; i < 26; i++) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "pigpen-chip";
+          btn.appendChild(pigpenSvgNode(i, 18));
+          const s = document.createElement("span");
+          s.textContent = String.fromCharCode(65 + i);
+          btn.appendChild(s);
+          btn.addEventListener("click", () => {
+            setAction("decrypt");
+            $("inputText").value += PIGPEN_CHARS[i];
+            runCipher();
+          });
+          pad.appendChild(btn);
+        }
+        stage.appendChild(pad);
+        return;
+      }
+
+      // 2) ALBERTI 3D DRAGGABLE DISK + STEP SIMULATOR
+      if (cipher === "alberti") {
+        sub.textContent = "Arrastra el anillo interior 3D o pulsa una letra para girar el rotor";
+        const outer = meta.outer_ring || "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const inner = meta.inner_ring || "GKLNPRTVZXYSOMQIHFDBACEJUW";
+        const offset = parseInt(meta.offset || "0", 10);
+        let currentAngle = -(offset * (360 / 26));
+
+        const simBtn = document.createElement("button");
+        simBtn.type = "button";
+        simBtn.className = "btn-mini";
+        simBtn.textContent = state.albertiTimer ? "⏹ Detener Giro" : "▶ Simular Giro";
+        simBtn.addEventListener("click", () => {
+          if (state.albertiTimer) {
+            clearInterval(state.albertiTimer); state.albertiTimer = null;
+            renderVisualizer(data); return;
+          }
+          let stepOff = offset;
+          state.albertiTimer = setInterval(() => {
+            stepOff = (stepOff + 1) % 26;
+            $("keyInput").value = inner[stepOff];
+            runCipher();
+          }, 850);
+        });
+        ctrls.appendChild(simBtn);
+
+        const wrap = document.createElement("div");
+        wrap.className = "alberti-wrap";
+
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("viewBox", "0 0 300 300");
+        svg.setAttribute("class", "alberti-svg");
+
+        const mkCircle = (r, fill, stroke) => {
+          const c = document.createElementNS(ns, "circle");
+          c.setAttribute("cx", "150"); c.setAttribute("cy", "150"); c.setAttribute("r", String(r));
+          c.setAttribute("fill", fill); c.setAttribute("stroke", stroke); c.setAttribute("stroke-width", "1.5");
+          return c;
+        };
+        svg.appendChild(mkCircle(142, "var(--surface)", "var(--border)"));
+        svg.appendChild(mkCircle(104, "var(--group)", "var(--apple-blue)"));
+        svg.appendChild(mkCircle(58, "var(--surface)", "var(--border)"));
+
+        for (let i = 0; i < 26; i++) {
+          const rad = ((i * 360) / 26 - 90) * (Math.PI / 180);
+          const t = document.createElementNS(ns, "text");
+          t.setAttribute("x", (150 + 123 * Math.cos(rad)).toFixed(1));
+          t.setAttribute("y", (154 + 123 * Math.sin(rad)).toFixed(1));
+          t.setAttribute("text-anchor", "middle");
+          t.setAttribute("font-size", "11");
+          t.setAttribute("font-weight", i === 0 ? "800" : "500");
+          t.setAttribute("fill", i === 0 ? "var(--apple-blue)" : "var(--text-primary)");
+          t.textContent = outer[i];
+          svg.appendChild(t);
+        }
+
+        const innerGroup = document.createElementNS(ns, "g");
+        innerGroup.setAttribute("class", "alberti-inner-ring");
+        innerGroup.style.transform = `rotate(${currentAngle}deg)`;
+        for (let i = 0; i < 26; i++) {
+          const rad = ((i * 360) / 26 - 90) * (Math.PI / 180);
+          const t = document.createElementNS(ns, "text");
+          t.setAttribute("class", "alberti-letter-hit");
+          t.setAttribute("x", (150 + 82 * Math.cos(rad)).toFixed(1));
+          t.setAttribute("y", (154 + 82 * Math.sin(rad)).toFixed(1));
+          t.setAttribute("text-anchor", "middle");
+          t.setAttribute("font-size", "11");
+          t.setAttribute("font-weight", i === offset ? "800" : "600");
+          t.setAttribute("fill", i === offset ? "var(--apple-mint)" : "var(--apple-indigo)");
+          t.textContent = inner[i];
+          t.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (state.action === "solve") setAction("encrypt");
+            $("keyInput").value = inner[i];
+            runCipher();
+          });
+          innerGroup.appendChild(t);
+        }
+        svg.appendChild(innerGroup);
+
+        // Pointer drag wheel rotation
+        let wheelDrag = false, startAng = 0, baseRot = currentAngle;
+        const ptAngle = (e) => {
+          const r = svg.getBoundingClientRect();
+          return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * (180 / Math.PI);
+        };
+        svg.addEventListener("pointerdown", (e) => {
+          if (e.target.classList.contains("alberti-letter-hit")) return;
+          wheelDrag = true; startAng = ptAngle(e); baseRot = currentAngle;
+          innerGroup.style.transition = "none";
+          svg.setPointerCapture(e.pointerId);
+        });
+        svg.addEventListener("pointermove", (e) => {
+          if (!wheelDrag) return;
+          currentAngle = baseRot + (ptAngle(e) - startAng);
+          innerGroup.style.transform = `rotate(${currentAngle}deg)`;
+        });
+        const endWheel = () => {
+          if (!wheelDrag) return;
+          wheelDrag = false;
+          innerGroup.style.transition = "";
+          const normIdx = Math.round((-currentAngle / 360) * 26);
+          const snapped = ((normIdx % 26) + 26) % 26;
+          if (state.action === "solve") setAction("encrypt");
+          $("keyInput").value = inner[snapped];
+          runCipher();
+        };
+        svg.addEventListener("pointerup", endWheel);
+        svg.addEventListener("pointercancel", endWheel);
+
+        const info = document.createElement("div");
+        info.style.flex = "1 1 200px";
+        const p1 = document.createElement("div");
+        p1.style.fontWeight = "700";
+        p1.style.marginBottom = "6px";
+        p1.textContent = `Alineación activa: A → ${inner[offset]} (Índice ${offset})`;
+        const p2 = document.createElement("div");
+        p2.className = "tile-sub";
+        p2.textContent = `Arrastra la rueda interior o pulsa una letra del disco para girar y recalcular en Rust.`;
+        info.append(p1, p2);
+        wrap.append(svg, info);
+        stage.appendChild(wrap);
+        return;
+      }
+
+      // 3) JEFFERSON 3D INTERACTIVE DRUM
+      if (cipher === "jefferson" && grid && grid.rows.length) {
+        sub.textContent = "Arrastra el cilindro en 3D · Usa ▲▼ o pulsa una fila para cambiar generatriz";
+        const highlightRow = parseInt(meta.highlight_row || "0", 10);
+
+        const autoBtn = document.createElement("button");
+        autoBtn.type = "button";
+        autoBtn.className = "btn-mini";
+        autoBtn.textContent = "🎯 Auto-Alinear Ganadora";
+        autoBtn.addEventListener("click", () => { setAction("solve"); runCipher(); });
+        ctrls.appendChild(autoBtn);
+
+        const hint = document.createElement("div");
+        hint.className = "orbit-hint";
+        hint.textContent = `Generatriz enfocada: fila +${highlightRow} · Arrastra para orbitar el tambor`;
+        stage.appendChild(hint);
+
+        const scene = document.createElement("div");
+        scene.className = "jeff-scene";
+        const drum = document.createElement("div");
+        drum.className = "jeff-drum";
+        drum.style.transform = `rotateX(${state.jeffRot.rx}deg) rotateY(${state.jeffRot.ry}deg)`;
+        bindDragOrbit(scene, state.jeffRot, () => {
+          drum.style.transform = `rotateX(${state.jeffRot.rx}deg) rotateY(${state.jeffRot.ry}deg)`;
+        });
+
+        const numDisks = grid.headers.length;
+        const windowOffsets = [-2, -1, 0, 1, 2];
+        for (let d = 0; d < numDisks; d++) {
+          const disk = document.createElement("div");
+          disk.className = "jeff-disk";
+
+          const up = document.createElement("button");
+          up.type = "button";
+          up.className = "jeff-step-btn";
+          up.textContent = "▲";
+          up.addEventListener("click", () => {
+            const cur = parseInt($("paramInput").value || String(highlightRow), 10) || 0;
+            if (state.action === "solve") setAction("encrypt");
+            $("paramInput").value = String((cur + 25) % 26);
+            runCipher();
+          });
+          disk.appendChild(up);
+
+          windowOffsets.forEach((delta) => {
+            const rowIdx = (highlightRow + delta + 26) % 26;
+            const cell = document.createElement("div");
+            cell.className = "jeff-cell" + (delta === 0 ? " focal" : "");
+            cell.textContent = grid.rows[rowIdx]?.[d] || "";
+            cell.title = `Alinear fila +${rowIdx}`;
+            cell.addEventListener("click", () => {
+              if (state.action === "solve") setAction("encrypt");
+              $("paramInput").value = String(rowIdx);
+              runCipher();
+            });
+            disk.appendChild(cell);
+          });
+
+          const dn = document.createElement("button");
+          dn.type = "button";
+          dn.className = "jeff-step-btn";
+          dn.textContent = "▼";
+          dn.addEventListener("click", () => {
+            const cur = parseInt($("paramInput").value || String(highlightRow), 10) || 0;
+            if (state.action === "solve") setAction("encrypt");
+            $("paramInput").value = String((cur + 1) % 26);
+            runCipher();
+          });
+          disk.appendChild(dn);
+          drum.appendChild(disk);
+        }
+        scene.appendChild(drum);
+        stage.appendChild(scene);
+        return;
+      }
+
+      // 4) SPARTAN SCYTALE 3D INTERACTIVE ROD
+      if (cipher === "scytale" && grid && grid.rows.length) {
+        sub.textContent = "Arrastra la vara espartana 3D o ajusta sus caras (+/-)";
+        const faces = parseInt(meta.faces || String(grid.headers.length), 10);
+        const cols = Math.max(2, faces);
+        const radius = Math.max(48, Math.round(cols * 14));
+
+        const minusBtn = document.createElement("button");
+        minusBtn.type = "button"; minusBtn.className = "btn-mini"; minusBtn.textContent = "− Cara";
+        minusBtn.addEventListener("click", () => {
+          if (state.action === "solve") setAction("encrypt");
+          $("paramInput").value = String(Math.max(2, cols - 1));
+          runCipher();
+        });
+        const plusBtn = document.createElement("button");
+        plusBtn.type = "button"; plusBtn.className = "btn-mini"; plusBtn.textContent = "+ Cara";
+        plusBtn.addEventListener("click", () => {
+          if (state.action === "solve") setAction("encrypt");
+          $("paramInput").value = String(Math.min(12, cols + 1));
+          runCipher();
+        });
+        ctrls.append(minusBtn, plusBtn);
+
+        const scene = document.createElement("div");
+        scene.className = "scytale-scene";
+        const rod = document.createElement("div");
+        rod.className = "scytale-rod";
+        rod.style.transform = `rotateY(${state.scytaleRot.ry}deg) rotateX(${state.scytaleRot.rx}deg)`;
+        bindDragOrbit(scene, state.scytaleRot, () => {
+          rod.style.transform = `rotateY(${state.scytaleRot.ry}deg) rotateX(${state.scytaleRot.rx}deg)`;
+        });
+
+        for (let f = 0; f < cols; f++) {
+          const face = document.createElement("div");
+          face.className = "scytale-face" + (state.scytaleSelectedFace === f ? " selected" : "");
+          const deg = (360 / cols) * f;
+          face.style.transform = `rotateX(${deg}deg) translateZ(${radius}px)`;
+          face.addEventListener("click", () => {
+            state.scytaleSelectedFace = f;
+            state.scytaleRot.rx = -deg;
+            renderVisualizer(data);
+          });
+
+          const tag = document.createElement("span");
+          tag.className = "scytale-face-tag";
+          tag.textContent = `C${f + 1}`;
+          face.appendChild(tag);
+
+          const letters = grid.rows.map((r) => r[f] || "").join(" ");
+          const span = document.createElement("span");
+          span.textContent = letters;
+          face.appendChild(span);
+          rod.appendChild(face);
+        }
+        scene.appendChild(rod);
+
+        const bar = document.createElement("div");
+        bar.className = "range-bar";
+        const lbl = document.createElement("span");
+        lbl.textContent = `Girar bastón 3D (${Math.round(state.scytaleRot.rx)}°)`;
+        const slider = document.createElement("input");
+        slider.type = "range"; slider.min = "-180"; slider.max = "180"; slider.value = String(Math.round(state.scytaleRot.rx));
+        slider.addEventListener("input", (e) => {
+          state.scytaleRot.rx = Number(e.target.value);
+          lbl.textContent = `Girar bastón 3D (${state.scytaleRot.rx}°)`;
+          rod.style.transform = `rotateY(${state.scytaleRot.ry}deg) rotateX(${state.scytaleRot.rx}deg)`;
+        });
+        bar.append(lbl, slider);
+        stage.append(scene, bar);
+        return;
+      }
+
+      // 5) CARDANO 3D FLOATING GRILLE + PLAYBACK + ORBIT INSPECTOR
+      if (cipher === "cardano" && grid) {
+        sub.textContent = "Arrastra la rejilla 3D · Pulsa una casilla para ver su órbita de 4 giros";
+        const n = parseInt(meta.size || String(grid.rows.length), 10);
+        const rawHoles = (meta.holes || "").split(";").filter(Boolean).map((p) => p.split(",").map(Number));
+
+        const playBtn = document.createElement("button");
+        playBtn.type = "button"; playBtn.className = "btn-mini";
+        playBtn.textContent = state.cardanoTimer ? "⏹ Parar" : "▶ Animar 4 Giros";
+        playBtn.addEventListener("click", () => {
+          if (state.cardanoTimer) {
+            clearInterval(state.cardanoTimer); state.cardanoTimer = null;
+            renderVisualizer(data); return;
+          }
+          state.cardanoTimer = setInterval(() => {
+            state.cardanoRotation = (state.cardanoRotation + 1) % 4;
+            renderVisualizer(data);
+          }, 950);
+          renderVisualizer(data);
+        });
+        ctrls.appendChild(playBtn);
+
+        [0, 90, 180, 270].forEach((deg, step) => {
+          const b = document.createElement("button");
+          b.type = "button"; b.className = "btn-mini";
+          if (state.cardanoRotation === step) {
+            b.style.background = "var(--apple-blue)"; b.style.color = "#FFFFFF";
+          }
+          b.textContent = `${deg}°`;
+          b.addEventListener("click", () => { state.cardanoRotation = step; renderVisualizer(data); });
+          ctrls.appendChild(b);
+        });
+
+        const activeHoles = new Set(
+          rawHoles.map(([r0, c0]) => {
+            let r = r0, c = c0;
+            for (let s = 0; s < state.cardanoRotation; s++) {
+              const nr = c; const nc = n - 1 - r; r = nr; c = nc;
+            }
+            return `${r},${c}`;
+          })
+        );
+
+        const orbitSet = new Set();
+        if (state.cardanoOrbitCell) {
+          let [r, c] = state.cardanoOrbitCell;
+          for (let s = 0; s < 4; s++) {
+            orbitSet.add(`${r},${c}`);
+            const nr = c; const nc = n - 1 - r; r = nr; c = nc;
+          }
+        }
+
+        const wrap = document.createElement("div");
+        wrap.className = "cardano-3d-wrap";
+        const stack = document.createElement("div");
+        stack.className = "cardano-3d-stack";
+        stack.style.transform = `rotateX(${state.cardanoTilt.rx}deg) rotateY(${state.cardanoTilt.ry}deg)`;
+        bindDragOrbit(wrap, state.cardanoTilt, () => {
+          stack.style.transform = `rotateX(${state.cardanoTilt.rx}deg) rotateY(${state.cardanoTilt.ry}deg)`;
+        });
+
+        const grille = document.createElement("div");
+        grille.className = "cardano-grille-layer";
+        grille.style.transform = `translateZ(20px)`;
+
+        const mat = document.createElement("div");
+        mat.className = "matrix-grid";
+        mat.style.gridTemplateColumns = `repeat(${n}, minmax(36px, 42px))`;
+        grid.rows.forEach((row, r) => {
+          row.forEach((cell, c) => {
+            const div = document.createElement("div");
+            const key = `${r},${c}`;
+            const isHole = activeHoles.has(key);
+            const isOrbit = orbitSet.has(key);
+            div.className = "matrix-cell " + (isHole ? "hole" : isOrbit ? "orbit" : "masked");
+            div.textContent = cell === " " ? "·" : cell;
+            div.addEventListener("click", (e) => {
+              e.stopPropagation();
+              state.cardanoOrbitCell = [r, c];
+              renderVisualizer(data);
+            });
+            mat.appendChild(div);
+          });
+        });
+        grille.appendChild(mat);
+        stack.appendChild(grille);
+        wrap.appendChild(stack);
+        stage.appendChild(wrap);
+        return;
+      }
+
+      // 6) INVISIBLE INK UV SPOTLIGHT
+      if (cipher === "invisible_ink") {
+        sub.textContent = "Pasa el cursor (linterna UV) o enciende la Luz UV completa";
+        const uvBtn = document.createElement("button");
+        uvBtn.type = "button"; uvBtn.className = "btn-mini";
+        uvBtn.textContent = state.uvReveal ? "Apagar Luz UV" : "Encender Luz UV";
+        uvBtn.addEventListener("click", () => { state.uvReveal = !state.uvReveal; renderVisualizer(data); });
+        ctrls.appendChild(uvBtn);
+
+        const carrier = data.action === "encrypt" ? data.result : $("inputText").value;
+        const surf = document.createElement("div");
+        surf.className = "uv-surface" + (state.uvReveal ? " uv-active" : "");
+
+        const spot = document.createElement("div");
+        spot.className = "uv-lens-spot";
+        surf.addEventListener("mousemove", (e) => {
+          const r = surf.getBoundingClientRect();
+          spot.style.left = `${e.clientX - r.left}px`;
+          spot.style.top = `${e.clientY - r.top}px`;
+        });
+
+        const visibleClean = carrier.replace(/[\u200B\u200C\u200D\uFEFF]/g, "");
+        const zwMatches = carrier.match(/[\u200B\u200C\u200D\uFEFF]+/g) || [];
+        const zwCount = zwMatches.join("").length;
+
+        const firstChar = visibleClean.slice(0, 1);
+        const rest = visibleClean.slice(1);
+        if (!state.uvReveal) {
+          surf.textContent = visibleClean || "(Sin texto portador visible)";
+        } else {
+          const pill = document.createElement("span");
+          pill.className = "uv-secret-pill";
+          const secretText = data.action === "encrypt" ? (meta.secret_preview || $("inputText").value) : data.result;
+          pill.textContent = zwCount > 0 ? `[${zwCount} ZW · "${secretText}"]` : "[Sin tinta invisible]";
+          surf.append(document.createTextNode(firstChar), pill, document.createTextNode(rest));
+        }
+        surf.appendChild(spot);
+        stage.appendChild(surf);
+
+        if (grid && grid.rows && grid.rows.length) {
+          const tbl = document.createElement("div");
+          tbl.style.marginTop = "12px"; tbl.style.display = "grid"; tbl.style.gap = "6px";
+          grid.rows.forEach((r) => {
+            const line = document.createElement("div");
+            line.className = "acrostic-line";
+            line.style.fontFamily = 'ui-monospace, "SF Mono", monospace';
+            line.style.fontSize = "12px";
+            line.textContent = `${r[0]}  →  ${r[1]}`;
+            tbl.appendChild(line);
+          });
+          stage.appendChild(tbl);
+        }
+        return;
+      }
+
+      // 7) ACROSTIC
+      if (cipher === "acrostic" && grid) {
+        sub.textContent = "Capas de versos con iniciales resaltadas";
+        grid.rows.forEach((r) => {
+          const row = document.createElement("div");
+          row.className = "acrostic-line";
+          const badge = document.createElement("span");
+          badge.className = "acrostic-initial";
+          badge.textContent = r[0];
+          const txt = document.createElement("span");
+          txt.textContent = r[1];
+          row.append(badge, txt);
+          stage.appendChild(row);
+        });
+        return;
+      }
+
+      // 8) VIGENERE / CAESAR / ATBASH (Interactive Tables + 3D IC Bars)
+      if (grid && (grid.kind === "substitution" || grid.kind === "key_shifts")) {
+        sub.textContent = grid.kind === "key_shifts" ? "Clave recuperada + Espectro 3D Índice de Coincidencia" : "Teclas interactivas de sustitución A–Z";
+        const tbl = document.createElement("div");
+        tbl.className = "sub-table";
+        grid.headers.forEach((h, i) => {
+          const pair = document.createElement("div");
+          pair.className = "sub-pair";
+          const top = document.createElement("div");
+          top.className = "top";
+          top.textContent = h;
+          const bot = document.createElement("div");
+          bot.className = "bot";
+          bot.textContent = grid.rows[0]?.[i] ?? "";
+          pair.append(top, bot);
+          if (cipher === "caesar") {
+            pair.title = `Aplicar desplazamiento +${i}`;
+            pair.addEventListener("click", () => {
+              if (state.action === "solve") setAction("encrypt");
+              $("keyInput").value = String(i);
+              runCipher();
+            });
+          }
+          tbl.appendChild(pair);
+        });
+        stage.appendChild(tbl);
+
+        if (cipher === "vigenere" && meta.ic_spectrum) {
+          const pairs = meta.ic_spectrum.split(",").filter(Boolean).map((item) => {
+            const [l, v] = item.split(":");
+            return { len: Number(l), ic: Number(v) };
+          });
+          const maxIc = Math.max(0.08, ...pairs.map((p) => p.ic));
+          const bars = document.createElement("div");
+          bars.className = "ic-bars";
+          pairs.forEach((p) => {
+            const col = document.createElement("div");
+            col.className = "ic-col";
+            col.title = `Longitud ${p.len} · IC = ${p.ic.toFixed(4)}`;
+            const bar = document.createElement("div");
+            bar.className = "ic-bar" + (p.ic >= 0.062 ? " peak" : "");
+            bar.style.height = `${Math.max(12, Math.round((p.ic / maxIc) * 76))}px`;
+            const lbl = document.createElement("span");
+            lbl.className = "ic-lbl";
+            lbl.textContent = `L${p.len}`;
+            col.append(bar, lbl);
+            bars.appendChild(col);
+          });
+          stage.appendChild(bars);
+        }
+        return;
+      }
+
+      // 9) PLAYFAIR / RAIL FENCE / COLUMNAR INTERACTIVE 3D MATRICES
+      if (grid && grid.rows && grid.rows.length) {
+        const cols = grid.headers.length || grid.rows[0].length;
+        let activeCells = new Set();
+        let destCells = new Set();
+
+        if (cipher === "playfair" && meta.digram_steps) {
+          sub.textContent = "Pulsa un dígrafo para elevar sus celdas origen (azul) y destino (verde) en 3D";
+          const steps = meta.digram_steps.split(" ").filter(Boolean);
+          const strip = document.createElement("div");
+          strip.className = "chip-strip";
+          steps.forEach((st, idx) => {
+            const m = st.match(/^([A-Z]{2}>[A-Z]{2})\[([a-z]+):(\d+),(\d+);(\d+),(\d+)\|(\d+),(\d+)\|(\d+),(\d+)\]$/);
+            if (!m) return;
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "step-chip" + (state.playfairSelectedStep === idx ? " active" : "");
+            btn.textContent = `${m[1]} (${m[2]})`;
+            btn.addEventListener("click", () => {
+              state.playfairSelectedStep = state.playfairSelectedStep === idx ? -1 : idx;
+              renderVisualizer(data);
+            });
+            strip.appendChild(btn);
+
+            if (state.playfairSelectedStep === idx) {
+              activeCells.add(`${m[3]},${m[4]}`);
+              activeCells.add(`${m[5]},${m[6]}`);
+              destCells.add(`${m[7]},${m[8]}`);
+              destCells.add(`${m[9]},${m[10]}`);
+            }
+          });
+          stage.appendChild(strip);
+        } else if (grid.kind === "zigzag") {
+          const curRails = parseInt(meta.rails || String(grid.rows.length), 10);
+          sub.textContent = "Onda 3D Rail Fence · pulsa +/- Raíles o ▶ Recorrer Onda";
+
+          const mBtn = document.createElement("button");
+          mBtn.type = "button"; mBtn.className = "btn-mini"; mBtn.textContent = "− Raíl";
+          mBtn.addEventListener("click", () => {
+            if (state.action === "solve") setAction("encrypt");
+            $("paramInput").value = String(Math.max(2, curRails - 1));
+            runCipher();
+          });
+          const pBtn = document.createElement("button");
+          pBtn.type = "button"; pBtn.className = "btn-mini"; pBtn.textContent = "+ Raíl";
+          pBtn.addEventListener("click", () => {
+            if (state.action === "solve") setAction("encrypt");
+            $("paramInput").value = String(Math.min(10, curRails + 1));
+            runCipher();
+          });
+          const animBtn = document.createElement("button");
+          animBtn.type = "button"; animBtn.className = "btn-mini";
+          animBtn.textContent = state.railTimer ? "⏹ Parar" : "▶ Recorrer Onda";
+          animBtn.addEventListener("click", () => {
+            if (state.railTimer) { clearInterval(state.railTimer); state.railTimer = null; state.railAnimStep = -1; renderVisualizer(data); return; }
+            state.railAnimStep = 0;
+            state.railTimer = setInterval(() => {
+              state.railAnimStep = (state.railAnimStep + 1) % Math.max(1, cols);
+              renderVisualizer(data);
+            }, 260);
+            renderVisualizer(data);
+          });
+          ctrls.append(mBtn, pBtn, animBtn);
+        } else {
+          sub.textContent = "Pulsa una cabecera de columna para elevarla en 3D";
+        }
+
+        const mat = document.createElement("div");
+        mat.className = "matrix-grid";
+        mat.style.gridTemplateColumns = `repeat(${cols}, minmax(34px, auto))`;
+
+        grid.headers.forEach((h, cIdx) => {
+          const cell = document.createElement("div");
+          cell.className = "matrix-cell header";
+          if (state.columnarSelectedCol === cIdx) cell.style.background = "rgba(0, 113, 227, 0.14)";
+          cell.textContent = h;
+          cell.addEventListener("click", () => {
+            state.columnarSelectedCol = state.columnarSelectedCol === cIdx ? -1 : cIdx;
+            renderVisualizer(data);
+          });
+          mat.appendChild(cell);
+        });
+
+        grid.rows.forEach((row, rIdx) => {
+          row.forEach((val, cIdx) => {
+            const cell = document.createElement("div");
+            let cls = "matrix-cell";
+            const key = `${rIdx},${cIdx}`;
+            if (destCells.has(key)) cls += " mint";
+            else if (activeCells.has(key)) cls += " hole";
+            else if (grid.kind === "zigzag" && val !== "" && state.railAnimStep === cIdx) cls += " mint";
+            else if (grid.kind === "zigzag" && val !== "") cls += " hole";
+            else if (state.columnarSelectedCol === cIdx && val !== "") cls += " hole";
+            else if (val === "") cls += " masked";
+            cell.className = cls;
+            cell.textContent = val === " " ? "␣" : (val || "·");
+            mat.appendChild(cell);
+          });
+        });
+        stage.appendChild(mat);
+      } else {
+        const empty = document.createElement("div");
+        empty.className = "tile-sub";
+        empty.textContent = "Elige uno de los Retos listos arriba o introduce un mensaje para renderizar el objeto 3D.";
+        stage.appendChild(empty);
+      }
+    }
+
+    document.querySelectorAll(".seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => { setAction(btn.dataset.action); runCipher(); });
+    });
+    $("btnRun").addEventListener("click", runCipher);
+    $("cipherFilter").addEventListener("input", (e) => renderSidebar(e.target.value));
+    $("btnClear").addEventListener("click", () => { $("inputText").value = ""; $("outputText").textContent = ""; });
+    $("btnSwap").addEventListener("click", () => {
+      $("inputText").value = $("outputText").textContent;
+      if (state.action === "encrypt") setAction("solve");
+      runCipher();
+    });
+    $("btnCopy").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText($("outputText").textContent);
+        const orig = $("btnCopy").textContent;
+        $("btnCopy").textContent = "✓ Copiado";
+        setTimeout(() => { $("btnCopy").textContent = orig; }, 1200);
+      } catch (_) {}
+    });
+
+    $("btnSamplePlain").addEventListener("click", () => {
+      const p = state.presets[state.cipher];
+      if (!p) return;
+      setAction("encrypt");
+      $("keyInput").value = p.key;
+      $("paramInput").value = p.param;
+      $("inputText").value = p.sample_plain;
+      runCipher();
+    });
+
+    $("btnSampleCrack").addEventListener("click", () => {
+      const p = state.presets[state.cipher];
+      if (!p) return;
+      setAction("solve");
+      if (state.cipher === "jefferson") $("keyInput").value = p.key;
+      else if (state.cipher === "cardano") { $("paramInput").value = p.param; $("keyInput").value = ""; }
+      else { $("keyInput").value = ""; $("paramInput").value = ""; }
+      $("inputText").value = p.sample_cipher;
+      runCipher();
+    });
+
+    async function boot() {
+      buildHero3DCylinder();
+      bindTiltCards();
+      let loaded = false;
+      try {
+        const [presetsRes, infoRes] = await Promise.all([fetch("/api/presets"), fetch("/api/info")]);
+        if (presetsRes.ok && infoRes.ok) {
+          const arr = await presetsRes.json();
+          arr.forEach((p) => { state.presets[p.id] = p; });
+          state.info = await infoRes.json();
+          loaded = true;
+        }
+      } catch (_) {}
+
+      if (!loaded && await initWasmFallback()) {
+        const arr = JSON.parse(readWasmOut(wasmExports.wasm_presets()));
+        arr.forEach((p) => { state.presets[p.id] = p; });
+        state.info = JSON.parse(readWasmOut(wasmExports.wasm_info()));
+      }
+
+      if (state.info) renderLandingCatalog(state.info);
+      renderSidebar();
+      selectCipher("caesar", false);
+    }
+
+    boot();
+  </script>
+</body>
+</html>

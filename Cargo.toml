@@ -1,0 +1,15 @@
+[package]
+name = "cifrados_rust"
+version = "0.1.0"
+edition = "2024"
+description = "Suite de 13 cifrados clasicos en Rust puro con motor de criptoanalisis, servidor HTTP nativo y soporte WebAssembly"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
