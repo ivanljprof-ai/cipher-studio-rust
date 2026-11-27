@@ -8,6 +8,8 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
+pub mod modern;
+
 /// Accion solicitada al motor criptografico.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
@@ -111,6 +113,11 @@ pub fn execute(req: &CipherRequest) -> Result<CipherOutput, CipherError> {
         "cardano" => run_cardano(action, &req.text, &req.key, &req.param),
         "invisible_ink" | "tinta_invisible" => run_invisible_ink(action, &req.text, &req.key),
         "acrostic" | "acrostico" | "acrosticos" => run_acrostic(action, &req.text, &req.key, &req.param),
+        "des" => modern::run_des(action, &req.text, &req.key),
+        "triple_des" | "3des" => modern::run_triple_des(action, &req.text, &req.key),
+        "idea" => modern::run_idea(action, &req.text, &req.key),
+        "aes" => modern::run_aes(action, &req.text, &req.key, &req.param),
+        "md5" => modern::run_md5(action, &req.text),
         _ => return Err(CipherError::UnknownCipher(req.cipher.clone())),
     }?;
     out.cipher = cipher;
@@ -2404,7 +2411,7 @@ pub fn presets_json() -> String {
         param,
     };
 
-    let defs: [(&str, &str, Vec<ChallengeDef>); 13] = [
+    let defs: [(&str, &str, Vec<ChallengeDef>); 18] = [
         ("caesar", "Cifrado Cesar", vec![
             ch("Clasico +3 (Roma)", "encrypt", "ATAQUE AL AMANECER", "3", ""),
             ch("Mensaje Largo (+13 ROT13)", "solve", "EL MENSAJE SECRETO ESTA GUARDADO EN EL ARCHIVO CENTRAL", "13", ""),
@@ -2469,6 +2476,31 @@ pub fn presets_json() -> String {
             ch("Poema SECRETO", "solve", "SECRETO", "", ""),
             ch("Verso Largo TESORO", "encrypt", "TESORO", "", ""),
             ch("Mensaje ATAQUE", "encrypt", "ATAQUE", "", ""),
+        ]),
+        ("des", "DES (64-bit Feistel)", vec![
+            ch("Cifrar con CLAVE123", "encrypt", "ATAQUE AL AMANECER", "CLAVE123", ""),
+            ch("Crackear DES (Diccionario)", "solve", "MENSAJE SECRETO DES", "CLAVE123", ""),
+            ch("Vector NIST Hex", "encrypt", "HOLA DES", "133457799BBCDFF1", ""),
+        ]),
+        ("triple_des", "3DES (Triple DES EDE)", vec![
+            ch("EDE 3 Claves (168-bit)", "encrypt", "TRANSFERENCIA SEGURA 3DES", "CLAVE123SECRETO1TRIPLEDS", ""),
+            ch("Crackear 3DES (Diccionario)", "solve", "MENSAJE CONFIDENCIAL EN 3DES", "CLAVE123SECRETO1TRIPLEDS", ""),
+            ch("2-Key 3DES (Hex 128-bit)", "encrypt", "BOVEDA CENTRAL", "0123456789ABCDEFFEDCBA9876543210", ""),
+        ]),
+        ("idea", "IDEA (128-bit)", vec![
+            ch("Bloques 64-bit · 8.5 Rondas", "encrypt", "MENSAJE EN IDEA 128", "IDEA128BITSECRET", ""),
+            ch("Crackear IDEA (Diccionario)", "solve", "EL TESORO ESTA CIFRADO CON IDEA", "IDEA128BITSECRET", ""),
+            ch("Clave Hexadecimal IDEA", "encrypt", "CIFRADO SUIZO 1991", "00010002000300040005000600070008", ""),
+        ]),
+        ("aes", "AES (128 / 192 / 256)", vec![
+            ch("AES-128 Estándar", "encrypt", "ATAQUE AL AMANECER CON AES", "CLAVE-AES-128BIT", "128"),
+            ch("AES-256 (14 Rondas)", "solve", "MENSAJE PROTEGIDO CON AES 256 BITS", "SECRETO-AES-256-BITS-RUST-STUDIO", "256"),
+            ch("AES-192 (12 Rondas)", "encrypt", "MATRIZ DE ESTADO 4X4", "CLAVE-AES-192-BITS-RUST!", "192"),
+        ]),
+        ("md5", "MD5 (Hash 128-bit)", vec![
+            ch("Hash + Efecto Avalancha", "encrypt", "Hola Rust 2024", "", ""),
+            ch("Crackear Hash '123456'", "solve", "123456", "", ""),
+            ch("Crackear PIN '2026'", "solve", "2026", "", ""),
         ]),
     ];
 
@@ -2546,9 +2578,14 @@ pub fn project_info_json() -> String {
         ("cardano", "Rejilla de Cardano", "Transposicion y Geometria", "1550 · Girolamo Cardano", "4 giros de 90 grados sobre N x N", "Cada orbita de 4 casillas tiene una unica perforacion valida; un error en la mascara corrompe el mensaje."),
         ("invisible_ink", "Tinta Invisible", "Esteganografia Digital", "Unicode Zero-Width", "Byte -> 4 simbolos {U+200B, 200C, 200D, FEFF}", "Invisible a simple vista en texto normal, pero un escaner de codepoints Unicode lo revela al instante."),
         ("acrostic", "Acrosticos", "Esteganografia Literaria", "Antiguedad · Poesia oculta", "Iniciales / Telesticos / Mesosticos", "Requiere redactar versos naturales; Rust extrae 5 canales posicionales en paralelo."),
+        ("des", "DES (Data Encryption Standard)", "Cifrado Simetrico de Bloques", "1977 · IBM / NIST FIPS 46-3", "Feistel 16 rondas · Bloques 64 bits · Clave 56 bits", "Obsoleto por su clave de 56 bits (2^56): vulnerable a busqueda exhaustiva en hardware moderno."),
+        ("triple_des", "3DES (Triple DES)", "Cifrado Simetrico de Bloques", "1998 · NIST SP 800-67", "C = E(K3, D(K2, E(K1, P)))", "Aplica DES tres veces (112/168 bits efectivos), pero sufre bloques pequenos de 64 bits (Sweet32)."),
+        ("idea", "IDEA", "Cifrado Simetrico de Bloques", "1991 · Xuejia Lai & James Massey", "8.5 rondas: XOR, + mod 2^16, * mod (2^16+1)", "Disenado para PGP con clave de 128 bits sin S-boxes; hoy desplazado por bloques de 128 bits como AES."),
+        ("aes", "AES (Rijndael)", "Cifrado Simetrico Moderno", "2001 · Daemen & Rijmen (FIPS 197)", "SubBytes + ShiftRows + MixColumns + AddRoundKey", "Estandar mundial actual (128/192/256 bits sobre matriz de estado 4x4 en GF(2^8))."),
+        ("md5", "MD5 (Message-Digest 5)", "Funcion Hash 128 bits", "1992 · Ronald Rivest (RFC 1321)", "64 pasos en 4 rondas -> Digest 128 bits", "Roto frente a colisiones y preimagenes rapidas en contrasenias debiles; no debe usarse en seguridad."),
     ];
 
-    let mut out = String::from("{\"project\":{\"name\":\"Cipher Studio\",\"engine\":\"Rust 2024 Nativo (0 dependencias externas)\",\"algorithms\":13,\"scoring\":\"Modelo heuristico bilingue ES/EN con unigramas, bigramas, trigramas, proporcion vocalica e Indice de Coincidencia.\"},\"ciphers\":[");
+    let mut out = String::from("{\"project\":{\"name\":\"Cipher Studio\",\"engine\":\"Rust 2024 Nativo (0 dependencias externas)\",\"algorithms\":18,\"scoring\":\"Modelo heuristico bilingue ES/EN con unigramas, bigramas, trigramas, proporcion vocalica, Indice de Coincidencia y auditoria de hashes/bloques.\"},\"ciphers\":[");
     for (i, (id, name, category, era, formula, vuln)) in cards.iter().enumerate() {
         if i > 0 {
             out.push(',');
@@ -3025,7 +3062,7 @@ mod tests {
         let ids = [
             "caesar", "atbash", "pigpen", "alberti", "vigenere", "playfair",
             "jefferson", "scytale", "rail_fence", "columnar", "cardano",
-            "invisible_ink", "acrostic",
+            "invisible_ink", "acrostic", "des", "triple_des", "idea", "aes", "md5",
         ];
         for id in ids {
             for act in ["encrypt", "decrypt", "solve"] {
@@ -3044,6 +3081,26 @@ mod tests {
             assert!(!dec.result.is_empty(), "{id} devolvio vacio");
         }
         let info = project_info_json();
-        assert!(info.contains("\"algorithms\":13"));
+        assert!(info.contains("\"algorithms\":18"));
+    }
+
+    #[test]
+    fn modern_ciphers_and_md5_roundtrip() {
+        for (id, key, param) in [
+            ("des", "CLAVE123", ""),
+            ("triple_des", "CLAVE123SECRETO1TRIPLEDS", ""),
+            ("idea", "IDEA128BITSECRET", ""),
+            ("aes", "CLAVE-AES-128BIT", "128"),
+            ("aes", "SECRETO-AES-256-BITS-RUST-STUDIO", "256"),
+        ] {
+            let plain = "ATAQUE AL AMANECER CON CRIPTOGRAFIA MODERNA";
+            let enc = execute(&req(id, "encrypt", plain, key, param)).unwrap();
+            let dec = execute(&req(id, "decrypt", &enc.result, key, param)).unwrap();
+            assert_eq!(dec.result, plain, "roundtrip fallo en {id}");
+        }
+        let md = execute(&req("md5", "encrypt", "abc", "", "")).unwrap();
+        assert_eq!(md.result, "900150983cd24fb0d6963f7d28e17f72");
+        let cracked = execute(&req("md5", "solve", "e10adc3949ba59abbe56e057f20f883e", "", "")).unwrap();
+        assert_eq!(cracked.result, "123456");
     }
 }

@@ -779,7 +779,7 @@
       <div class="topbar-actions">
         <span class="pill-badge">
           <span class="status-dot"></span>
-          13 Cifrados · 0 Deps Rust
+          18 Cifrados · 0 Deps Rust
         </span>
         <button id="themeToggle" class="btn-ghost" type="button" title="Alternar apariencia">
           <span class="theme-opt-dark">
@@ -800,9 +800,9 @@
     <div class="landing-hero">
       <div>
         <div class="eyebrow">Rust 2024 · Estándar Puro · Objetos 3D Manipulables</div>
-        <h2 class="landing-title">Trece siglos de cifrados clásicos, interactivos en 3D.</h2>
+        <h2 class="landing-title">De la Esparta clásica a AES-256, interactivos en 3D.</h2>
         <p class="landing-lead">
-          <strong>Cipher Studio</strong> combina un motor criptográfico escrito íntegramente en <strong>Rust nativo</strong> con mecanismos físicos interactivos en 3D: gira discos, rota bastones espartanos, desliza rotores Jefferson, proyecta luz UV y crackea textos cifrados automáticamente con múltiples retos históricos.
+          <strong>Cipher Studio</strong> combina un motor criptográfico escrito íntegramente en <strong>Rust nativo</strong> con mecanismos físicos y modernos en 3D: desde César, Alberti, Jefferson y Cardano hasta <strong>DES, 3DES, IDEA, AES y MD5</strong> con inspección de rondas y crackeo en vivo.
         </p>
         <div class="landing-cta">
           <button id="btnGoLab" class="btn-primary" type="button">Abrir Laboratorio Criptográfico →</button>
@@ -822,7 +822,7 @@
         <div class="arch-kicker">01 · Motor Rust Nativo</div>
         <h3 class="arch-title">Cero Dependencias Externas</h3>
         <p class="arch-body">
-          Los 13 cifrados, el parser JSON y el servidor HTTP multihilo corren en <code>std</code> puro de Rust 2024 en microsegundos.
+          Los 18 algoritmos (clásicos, bloques simétricos y hash MD5), el parser JSON y el servidor HTTP corren en <code>std</code> puro de Rust 2024.
         </p>
       </article>
       <article class="tilt-card">
@@ -842,7 +842,7 @@
     </div>
 
     <div class="section-head">
-      <h2>Explora los 13 Cifrados del Proyecto</h2>
+      <h2>Explora los 18 Cifrados y Hashes del Proyecto</h2>
       <span class="tile-sub">Pulsa cualquiera para abrir su laboratorio 3D y galería de retos</span>
     </div>
     <div id="catalogGrid" class="catalog-grid"></div>
@@ -853,7 +853,7 @@
     <div class="shell">
       <aside class="sidebar" aria-label="Selector de cifrados">
         <div class="sidebar-search-wrap">
-          <input id="cipherFilter" class="sidebar-search" type="search" placeholder="Filtrar los 13 cifrados…" autocomplete="off">
+          <input id="cipherFilter" class="sidebar-search" type="search" placeholder="Filtrar los 18 algoritmos…" autocomplete="off">
         </div>
         <div id="cipherList"></div>
       </aside>
@@ -1031,6 +1031,36 @@
             keyLabel: null, paramLabel: "Modo (lines/words)", paramPlaceholder: "lines"
           }
         ]
+      },
+      {
+        group: "Cifrados Modernos & Hash",
+        items: [
+          {
+            id: "des", name: "DES (64-bit)", era: "1977 · Feistel 16 rondas", badge: "DES",
+            desc: "Data Encryption Standard: bloques de 64 bits con 16 rondas Feistel, S-Boxes y clave de 56 bits. Inspecciona cada ronda L/R en 3D.",
+            keyLabel: "Clave (8 bytes o 16 hex)", keyPlaceholder: "CLAVE123", paramLabel: null
+          },
+          {
+            id: "triple_des", name: "3DES (Triple DES)", era: "1998 · EDE 168-bit", badge: "3D",
+            desc: "Aplica DES tres veces en modo E(K3, D(K2, E(K1, P))) con clave de 24 bytes (o 48 hex). Observa el pipeline de 3 etapas en 3D.",
+            keyLabel: "Clave (24 bytes o 48 hex)", keyPlaceholder: "CLAVE123SECRETO1TRIPLEDS", paramLabel: null
+          },
+          {
+            id: "idea", name: "IDEA (128-bit)", era: "1991 · 8.5 Rondas", badge: "⊗",
+            desc: "International Data Encryption Algorithm: combina XOR, suma mod 65536 y multiplicación mod 65537 en 8.5 rondas sobre 4 palabras de 16 bits.",
+            keyLabel: "Clave (16 bytes o 32 hex)", keyPlaceholder: "IDEA128BITSECRET", paramLabel: null
+          },
+          {
+            id: "aes", name: "AES (Rijndael)", era: "2001 · FIPS 197", badge: "AES",
+            desc: "Estándar mundial de bloques de 128 bits (128/192/256 bits de clave). Explora en 3D la matriz de estado 4×4 ronda por ronda.",
+            keyLabel: "Clave (16/24/32 bytes o hex)", keyPlaceholder: "CLAVE-AES-128BIT", paramLabel: "Bits (128 / 192 / 256)", paramPlaceholder: "128"
+          },
+          {
+            id: "md5", name: "MD5 (Hash 128-bit)", era: "1992 · RFC 1321", badge: "#5",
+            desc: "Función resumen de 128 bits en 64 pasos. Calcula el digest + efecto avalancha, o crackea hashes débiles por diccionario y PIN 0000-9999.",
+            keyLabel: null, paramLabel: null
+          }
+        ]
       }
     ];
 
@@ -1109,6 +1139,7 @@
       railAnimStep: -1,
       railTimer: null,
       albertiTimer: null,
+      aesRoundIdx: -1,
       uvReveal: false
     };
 
@@ -1358,7 +1389,7 @@
         if (state.cipher === "jefferson") {
           $("keyInput").value = ch.key;
           $("paramInput").value = "";
-        } else if (state.cipher === "cardano") {
+        } else if (state.cipher === "cardano" || state.cipher === "aes") {
           $("paramInput").value = ch.param;
           $("keyInput").value = "";
         } else {
@@ -1380,6 +1411,7 @@
       state.columnarSelectedCol = -1;
       state.scytaleSelectedFace = -1;
       state.railAnimStep = -1;
+      state.aesRoundIdx = -1;
 
       const def = findCipherDef(id);
       const preset = state.presets[id];
@@ -1435,7 +1467,7 @@
     const textEnc = new TextEncoder();
     const textDec = new TextDecoder();
 
-    const WASM_URL = "./cipher.wasm?v=2";
+    const WASM_URL = "./cipher.wasm?v=3";
     const isStaticHost = /github\.io|vercel\.app|netlify\.app|pages\.dev/.test(location.hostname) || location.protocol === "file:";
 
     async function initWasmFallback() {
@@ -2125,7 +2157,94 @@
         return;
       }
 
-      // 9) PLAYFAIR / RAIL FENCE / COLUMNAR INTERACTIVE 3D MATRICES
+      // 9) MODERN BLOCK CIPHERS & MD5 (AES 4x4 3D State, DES Feistel, 3DES Pipeline, IDEA, MD5)
+      if (grid && grid.kind === "aes_state") {
+        const snapshots = (meta.rounds_states || "").split(",").filter(Boolean);
+        const totalRounds = snapshots.length;
+        const activeIdx = state.aesRoundIdx >= 0 && state.aesRoundIdx < totalRounds ? state.aesRoundIdx : totalRounds - 1;
+        sub.textContent = `Matriz de Estado AES-${meta.bits || "128"} (4×4 bytes en GF(2⁸)) · Ronda ${activeIdx} de ${Math.max(0, totalRounds - 1)}`;
+
+        if (totalRounds > 1) {
+          const strip = document.createElement("div");
+          strip.className = "chip-strip";
+          snapshots.forEach((_, idx) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "step-chip" + (idx === activeIdx ? " active" : "");
+            b.textContent = idx === 0 ? "R0" : `R${idx}`;
+            b.addEventListener("click", () => { state.aesRoundIdx = idx; renderVisualizer(data); });
+            strip.appendChild(b);
+          });
+          stage.appendChild(strip);
+        }
+
+        const hex = snapshots[activeIdx] || "";
+        const mat = document.createElement("div");
+        mat.className = "matrix-grid";
+        mat.style.gridTemplateColumns = "repeat(4, minmax(46px, 56px))";
+        mat.style.transform = "rotateX(12deg) rotateY(-8deg)";
+
+        for (let c = 0; c < 4; c++) {
+          const h = document.createElement("div");
+          h.className = "matrix-cell header";
+          h.textContent = `Col ${c}`;
+          mat.appendChild(h);
+        }
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            const cell = document.createElement("div");
+            cell.className = "matrix-cell " + (activeIdx === totalRounds - 1 ? "mint" : "hole");
+            const pos = (c * 4 + r) * 2;
+            cell.textContent = hex.length >= pos + 2 ? hex.slice(pos, pos + 2) : (grid.rows[r]?.[c] || "00");
+            mat.appendChild(cell);
+          }
+        }
+        stage.appendChild(mat);
+        return;
+      }
+
+      if (grid && (grid.kind === "feistel" || grid.kind === "pipeline" || grid.kind === "idea_rounds" || grid.kind === "md5_digest")) {
+        const titles = {
+          feistel: "Red de Feistel DES (16 rondas L / R / Subclave K)",
+          pipeline: "Pipeline 3DES-EDE en 3 etapas (E → D → E)",
+          idea_rounds: "Rondas IDEA 1..8.5 (4 sub-bloques de 16 bits)",
+          md5_digest: "Registros 32-bit (A, B, C, D) del Digest MD5"
+        };
+        sub.textContent = titles[grid.kind] || "Estructura interna";
+        if (grid.kind === "md5_digest" && meta.avalanche) {
+          const av = document.createElement("div");
+          av.className = "cat-formula";
+          av.style.marginBottom = "10px";
+          av.textContent = `Efecto avalancha (+1 bit): ${meta.avalanche}`;
+          stage.appendChild(av);
+        }
+        const cols = grid.headers.length;
+        const mat = document.createElement("div");
+        mat.className = "matrix-grid";
+        mat.style.gridTemplateColumns = `repeat(${cols}, minmax(68px, auto))`;
+        grid.headers.forEach((h) => {
+          const cell = document.createElement("div");
+          cell.className = "matrix-cell header";
+          cell.textContent = h;
+          mat.appendChild(cell);
+        });
+        grid.rows.forEach((row, rIdx) => {
+          row.forEach((val, cIdx) => {
+            const cell = document.createElement("div");
+            let cls = "matrix-cell";
+            if (rIdx === grid.rows.length - 1 && cIdx > 0) cls += " mint";
+            else if (cIdx === 0) cls += " hole";
+            cell.className = cls;
+            cell.style.fontSize = "12px";
+            cell.textContent = val;
+            mat.appendChild(cell);
+          });
+        });
+        stage.appendChild(mat);
+        return;
+      }
+
+      // 10) PLAYFAIR / RAIL FENCE / COLUMNAR INTERACTIVE 3D MATRICES
       if (grid && grid.rows && grid.rows.length) {
         const cols = grid.headers.length || grid.rows[0].length;
         let activeCells = new Set();

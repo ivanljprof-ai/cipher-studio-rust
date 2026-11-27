@@ -1,14 +1,14 @@
-# Cipher Studio · Criptografía Clásica 3D en Rust
+# Cipher Studio · Criptografía Clásica y Moderna 3D en Rust
 
 > **Demo en vivo (100% WebAssembly en tu navegador):** **https://ivanljprof-ai.github.io/cipher-studio-rust/**
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-0071E3?style=flat-square&logo=github)](https://ivanljprof-ai.github.io/cipher-studio-rust/)
 [![Rust](https://img.shields.io/badge/Rust-2024%20Edition-orange?style=flat-square&logo=rust)](Cargo.toml)
-[![WebAssembly](https://img.shields.io/badge/WASM-300%20KB-5E5CE6?style=flat-square&logo=webassembly)](docs/cipher.wasm)
+[![WebAssembly](https://img.shields.io/badge/WASM-315%20KB-5E5CE6?style=flat-square&logo=webassembly)](docs/cipher.wasm)
 [![Dependencies](https://img.shields.io/badge/Dependencies-0%20External%20Crates-30D158?style=flat-square)](Cargo.toml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-Suite interactiva de **13 cifrados clásicos, esteganografía y criptoanálisis automático** escrita íntegramente en **Rust puro** (cero crates externos), con estética clara Apple HIG, objetos 3D manipulables en tiempo real y retos multinivel en español e inglés.
+Suite interactiva de **18 algoritmos criptográficos** (13 cifrados clásicos/esteganografía + **DES, 3DES, IDEA, AES-128/192/256 y MD5**) escrita íntegramente en **Rust puro** (cero crates externos), con estética clara Apple HIG, objetos 3D manipulables en tiempo real y retos multinivel en español e inglés.
 
 ---
 
@@ -44,6 +44,11 @@ flowchart LR
 | 11 | **Rejilla de Cardano** | Transposición | Placa 3D `0°/90°/180°/270°` + órbitas | Evaluación de plantillas + penalización de huecos |
 | 12 | **Tinta Invisible** | Esteganografía | Linterna UV que sigue al cursor | Escáner binario Zero-Width (`U+200B..U+FEFF`) |
 | 13 | **Acrósticos** | Esteganografía | Versos con iniciales resaltadas | Extracción simultánea (acróstico, notarikon, teléstico, mesóstico) |
+| 14 | **DES (64-bit)** | Bloques Simétrico | Red Feistel 16 rondas (L/R/K) | Auditoría de claves conocidas + verificación PKCS#7 |
+| 15 | **3DES (EDE)** | Bloques Simétrico | Pipeline 3D `E(K1)→D(K2)→E(K3)` | Descifrado EDE inverso con claves de 168/112 bits |
+| 16 | **IDEA (128-bit)** | Bloques Simétrico | Rondas mod `65537`/`65536`/`XOR` | Inversos multiplicativos/aditivos por subclave |
+| 17 | **AES (128/192/256)** | Bloques Moderno | Matriz de estado `4×4` 3D por ronda | Descifrado FIPS 197 + auditoría de diccionario |
+| 18 | **MD5 (RFC 1321)** | Hash 128-bit | Registros `(A, B, C, D)` + avalancha | Cracker de diccionario + PINs `0000–9999` en Rust |
 
 ---
 
