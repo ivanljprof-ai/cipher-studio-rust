@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 pub mod modern;
+pub mod wordlist;
 
 /// Accion solicitada al motor criptografico.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,6 +99,10 @@ pub struct CipherRequest {
 /// Ejecuta la operacion solicitada sobre el cifrado indicado.
 pub fn execute(req: &CipherRequest) -> Result<CipherOutput, CipherError> {
     let action = Action::parse(&req.action)?;
+    if action != Action::Solve {
+        wordlist::remember_key(&req.key);
+        wordlist::remember_preimage(&req.text);
+    }
     let cipher = req.cipher.trim().to_ascii_lowercase();
     let mut out = match cipher.as_str() {
         "caesar" | "cesar" => run_caesar(action, &req.text, &req.key),
@@ -867,14 +872,16 @@ fn solve_vigenere(text: &str, hint_key: &str) -> (String, String, Vec<Candidate>
         }
     }
 
-    // 2) Diccionario de claves frecuentes como apoyo en textos cortos
-    for kw in [
-        "CLAVE", "SECRETO", "KEY", "SECRET", "VIGENERE", "ROMA", "CESAR", "ALFA",
-        "SOL", "LUNA", "CODIGO", "CRYPTO", "ENIGMA", "HOLA", "ESPANA", "MADRID",
-        "LEON", "LIMON", "LEMON",
-    ] {
-        let kb = kw.as_bytes().to_vec();
-        if !seen_keys.contains(&kb) {
+    // 2) Claves de sesion y diccionario amplio para textos cortos
+    for sk in wordlist::session_keys() {
+        let kb = extract_upper_az(&sk);
+        if !kb.is_empty() && !seen_keys.contains(&kb) {
+            seen_keys.push(kb);
+        }
+    }
+    for kw in wordlist::WORDLIST_DB {
+        let kb = extract_upper_az(kw);
+        if (2..=12).contains(&kb.len()) && !seen_keys.contains(&kb) {
             seen_keys.push(kb);
         }
     }
@@ -1170,29 +1177,31 @@ fn run_playfair(action: Action, text: &str, key: &str) -> Result<CipherOutput, C
             )
         }
         Action::Solve => {
-            let mut keys: Vec<&str> = Vec::new();
+            let mut keys: Vec<String> = Vec::new();
             if !key.trim().is_empty() {
-                keys.push(key.trim());
+                keys.push(key.trim().to_owned());
             }
-            for kw in [
-                "MONARQUIA", "MONARCHY", "PLAYFAIR", "SECRETO", "CLAVE", "KEYWORD",
-                "CIPHER", "ESPANA", "MADRID", "CRYPTO", "ENIGMA", "CESAR", "ROMA",
-            ] {
-                if !keys.contains(&kw) {
-                    keys.push(kw);
+            for sk in wordlist::session_keys() {
+                if !keys.contains(&sk) {
+                    keys.push(sk);
+                }
+            }
+            for &kw in wordlist::WORDLIST_DB {
+                if kw.len() >= 3 && kw.chars().all(|c| c.is_ascii_alphabetic()) && !keys.iter().any(|x| x == kw) {
+                    keys.push(kw.to_owned());
                 }
             }
             let mut ranked: Vec<(String, String, [u8; 25], f64)> = keys
                 .into_iter()
                 .map(|kw| {
-                    let (dec, sq) = playfair_decrypt(text, kw);
+                    let (dec, sq) = playfair_decrypt(text, &kw);
                     let sc = score_text(&dec);
                     (format!("Clave '{kw}'"), dec, sq, sc)
                 })
                 .collect();
 
-            if trace_pairs.len() >= 28 {
-                let (hc_txt, hc_sq, hc_sc) = playfair_hill_climb(&trace_pairs, 1800);
+            if trace_pairs.len() >= 22 {
+                let (hc_txt, hc_sq, hc_sc) = playfair_hill_climb(&trace_pairs, 2200);
                 ranked.push(("Hill-Climbing 5x5 (sin clave)".into(), hc_txt, hc_sq, hc_sc));
             }
 
@@ -1790,10 +1799,18 @@ fn run_columnar(action: Action, text: &str, key: &str) -> Result<CipherOutput, C
             if !key.trim().is_empty() {
                 perms.push((format!("Clave '{eff_key}'"), order.clone()));
             }
-            for kw in ["CLAVE", "SECRETO", "CESAR", "ROMA", "CIPHER", "CODIGO", "MADRID", "ENIGMA"] {
-                let ord = key_column_order(kw);
+            for sk in wordlist::session_keys() {
+                let ord = key_column_order(&sk);
                 if !perms.iter().any(|(_, o)| o == &ord) {
-                    perms.push((format!("Clave '{kw}'"), ord));
+                    perms.push((format!("Clave '{sk}'"), ord));
+                }
+            }
+            for &kw in wordlist::WORDLIST_DB {
+                if (3..=10).contains(&kw.len()) && kw.chars().all(|c| c.is_ascii_alphabetic()) {
+                    let ord = key_column_order(kw);
+                    if !perms.iter().any(|(_, o)| o == &ord) {
+                        perms.push((format!("Clave '{kw}'"), ord));
+                    }
                 }
             }
             for len in 2..=6 {
@@ -1987,26 +2004,31 @@ fn run_cardano(action: Action, text: &str, key: &str, param: &str) -> Result<Cip
             )
         }
         Action::Solve => {
-            let mut seeds: Vec<&str> = Vec::new();
+            let mut seeds: Vec<String> = Vec::new();
             if !key.trim().is_empty() {
-                seeds.push(key.trim());
+                seeds.push(key.trim().to_owned());
             }
-            for kw in ["CARDANO", "SECRETO", "CLAVE", "1550", "REJILLA", "ROMA", "MADRID", "KEY"] {
-                if !seeds.contains(&kw) {
-                    seeds.push(kw);
+            for sk in wordlist::session_keys() {
+                if !seeds.contains(&sk) {
+                    seeds.push(sk);
                 }
             }
-            struct CardanoRanked<'a> {
-                seed: &'a str,
+            for &kw in wordlist::WORDLIST_DB {
+                if !kw.is_empty() && !seeds.iter().any(|s| s == kw) {
+                    seeds.push(kw.to_owned());
+                }
+            }
+            struct CardanoRanked {
+                seed: String,
                 text: String,
                 matrix: Vec<Vec<char>>,
                 holes: Vec<(usize, usize)>,
                 score: f64,
             }
-            let mut ranked: Vec<CardanoRanked<'_>> = seeds
+            let mut ranked: Vec<CardanoRanked> = seeds
                 .into_iter()
                 .map(|seed| {
-                    let holes = cardano_holes(n, seed);
+                    let holes = cardano_holes(n, &seed);
                     let (text, matrix) = cardano_decrypt_with_holes(text, n, &holes);
                     let leading_ws = text.chars().take_while(|c| c.is_whitespace()).count() as f64;
                     let score = score_text(&text) - leading_ws * 0.25;
@@ -2014,12 +2036,13 @@ fn run_cardano(action: Action, text: &str, key: &str, param: &str) -> Result<Cip
                 })
                 .collect();
             ranked.sort_by(|a, b| b.score.total_cmp(&a.score));
-            let bs = ranked[0].seed;
+            let bs = ranked[0].seed.clone();
             let btxt = ranked[0].text.clone();
             let bmat = ranked[0].matrix.clone();
             let bholes = ranked[0].holes.clone();
             let cands = ranked
                 .into_iter()
+                .take(12)
                 .map(|item| Candidate {
                     label: format!("Rejilla '{}' ({n}x{n})", item.seed),
                     text: item.text,

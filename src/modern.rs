@@ -1,7 +1,12 @@
 //! Algoritmos criptograficos modernos de bloque y hash en Rust puro (0 dependencias):
 //! DES (FIPS 46-3), 3DES (EDE), IDEA (128-bit), AES-128/192/256 (FIPS 197) y MD5 (RFC 1321).
 
+use crate::wordlist::{WORDLIST_DB, session_keys, session_preimages};
 use crate::{Action, Candidate, CipherError, CipherOutput, GridData, MetaEntry, score_text};
+
+fn is_clean_plaintext(s: &str) -> bool {
+    !s.is_empty() && s.chars().all(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t'))
+}
 
 // ============================================================================
 // Utilidades compartidas Hex, Claves y PKCS#7
@@ -336,11 +341,20 @@ pub(crate) fn run_des(action: Action, text: &str, key: &str) -> Result<CipherOut
             if !key.trim().is_empty() {
                 candidates_keys.push((format!("Clave usuario '{key}'"), key_arr));
             }
-            for kw in ["CLAVE123", "SECRETO1", "12345678", "PASSWORD", "133457799BBCDFF1", "0123456789ABCDEF", "DESKEY01", "ADMIN123"] {
+            for sk in session_keys() {
+                let kv = parse_key_bytes(&sk, 8, b"CLAVE123");
+                let mut ka = [0u8; 8];
+                ka.copy_from_slice(&kv);
+                candidates_keys.push((format!("Sesion '{sk}'"), ka));
+            }
+            for &kw in WORDLIST_DB {
+                if kw.is_empty() {
+                    continue;
+                }
                 let kv = parse_key_bytes(kw, 8, b"CLAVE123");
                 let mut ka = [0u8; 8];
                 ka.copy_from_slice(&kv);
-                candidates_keys.push((format!("Clave '{kw}'"), ka));
+                candidates_keys.push((format!("BD '{kw}'"), ka));
             }
 
             let mut ranked: Vec<(String, String, f64, Vec<[String; 4]>)> = Vec::new();
@@ -348,6 +362,7 @@ pub(crate) fn run_des(action: Action, text: &str, key: &str) -> Result<CipherOut
                 let (pt_pad, tr) = des_transform_bytes(&ct, ka, false);
                 if let Ok(pt) = pkcs7_unpad(&pt_pad, 8)
                     && let Ok(s) = std::str::from_utf8(&pt)
+                    && is_clean_plaintext(s)
                 {
                     ranked.push((lbl, s.to_owned(), score_text(s), tr));
                 }
@@ -455,10 +470,21 @@ pub(crate) fn run_triple_des(action: Action, text: &str, key: &str) -> Result<Ci
                 });
             }
             let ct = hex_decode(text)?;
-            let mut try_keys = vec![(format!("Clave '{}'", if key.trim().is_empty() { "default" } else { key.trim() }), (k1, k2, k3))];
+            let mut try_keys = Vec::new();
+            if !key.trim().is_empty() || action == Action::Decrypt {
+                try_keys.push((
+                    format!("Clave '{}'", if key.trim().is_empty() { "default" } else { key.trim() }),
+                    (k1, k2, k3),
+                ));
+            }
             if action == Action::Solve {
-                for kw in ["CLAVE123SECRETO1TRIPLEDS", "3DES-SECRET-KEY-24BYTES!", "PASSWORD12345678ABCDEFGH"] {
-                    try_keys.push((format!("Diccionario '{kw}'"), split_3des_keys(kw)));
+                for sk in session_keys() {
+                    try_keys.push((format!("Sesion '{sk}'"), split_3des_keys(&sk)));
+                }
+                for &kw in WORDLIST_DB {
+                    if !kw.is_empty() {
+                        try_keys.push((format!("BD '{kw}'"), split_3des_keys(kw)));
+                    }
                 }
             }
             let mut ranked = Vec::new();
@@ -467,8 +493,15 @@ pub(crate) fn run_triple_des(action: Action, text: &str, key: &str) -> Result<Ci
                 let (s2, _) = des_transform_bytes(&s1, b, true);
                 let (s3, _) = des_transform_bytes(&s2, a, false);
                 if let Ok(pt) = pkcs7_unpad(&s3, 8) {
-                    let txt = bytes_to_readable(&pt);
-                    ranked.push((lbl, txt.clone(), score_text(&txt), s1, s2, s3));
+                    if action == Action::Decrypt {
+                        let txt = bytes_to_readable(&pt);
+                        ranked.push((lbl, txt.clone(), score_text(&txt), s1, s2, s3));
+                        break;
+                    } else if let Ok(txt) = std::str::from_utf8(&pt)
+                        && is_clean_plaintext(txt)
+                    {
+                        ranked.push((lbl, txt.to_owned(), score_text(txt), s1, s2, s3));
+                    }
                 }
             }
             if ranked.is_empty() {
@@ -697,16 +730,28 @@ pub(crate) fn run_idea(action: Action, text: &str, key: &str) -> Result<CipherOu
                 });
             }
             let ct = hex_decode(text)?;
-            let mut try_keys = vec![(
-                format!("Clave '{}'", if key.trim().is_empty() { "default" } else { key.trim() }),
-                key_arr,
-            )];
+            let mut try_keys = Vec::new();
+            if !key.trim().is_empty() || action == Action::Decrypt {
+                try_keys.push((
+                    format!("Clave '{}'", if key.trim().is_empty() { "default" } else { key.trim() }),
+                    key_arr,
+                ));
+            }
             if action == Action::Solve {
-                for kw in ["IDEA128BITSECRET", "SECRETOIDEA12345", "00010002000300040005000600070008", "CLAVE128BITSIDEA"] {
+                for sk in session_keys() {
+                    let kv = parse_key_bytes(&sk, 16, b"IDEA128BITSECRET");
+                    let mut ka = [0u8; 16];
+                    ka.copy_from_slice(&kv);
+                    try_keys.push((format!("Sesion '{sk}'"), ka));
+                }
+                for &kw in WORDLIST_DB {
+                    if kw.is_empty() {
+                        continue;
+                    }
                     let kv = parse_key_bytes(kw, 16, b"IDEA128BITSECRET");
                     let mut ka = [0u8; 16];
                     ka.copy_from_slice(&kv);
-                    try_keys.push((format!("Diccionario '{kw}'"), ka));
+                    try_keys.push((format!("BD '{kw}'"), ka));
                 }
             }
             let mut ranked = Vec::new();
@@ -714,8 +759,15 @@ pub(crate) fn run_idea(action: Action, text: &str, key: &str) -> Result<CipherOu
                 let dsk = idea_dec_subkeys(&idea_enc_subkeys(ka));
                 let (pt_pad, tr) = idea_transform_bytes(&ct, &dsk);
                 if let Ok(pt) = pkcs7_unpad(&pt_pad, 8) {
-                    let txt = bytes_to_readable(&pt);
-                    ranked.push((lbl, txt.clone(), score_text(&txt), tr));
+                    if action == Action::Decrypt {
+                        let txt = bytes_to_readable(&pt);
+                        ranked.push((lbl, txt.clone(), score_text(&txt), tr));
+                        break;
+                    } else if let Ok(txt) = std::str::from_utf8(&pt)
+                        && is_clean_plaintext(txt)
+                    {
+                        ranked.push((lbl, txt.to_owned(), score_text(txt), tr));
+                    }
                 }
             }
             if ranked.is_empty() {
@@ -1014,15 +1066,32 @@ pub(crate) fn run_aes(action: Action, text: &str, key: &str, param: &str) -> Res
                 });
             }
             let ct = hex_decode(text)?;
-            let mut try_keys = vec![(
-                format!("AES-{bits} '{}'", if key.trim().is_empty() { "default" } else { key.trim() }),
-                key_bytes,
-            )];
+            let mut try_keys = Vec::new();
+            if !key.trim().is_empty() || action == Action::Decrypt {
+                try_keys.push((
+                    format!("AES-{bits} '{}'", if key.trim().is_empty() { "default" } else { key.trim() }),
+                    key_bytes,
+                ));
+            }
             if action == Action::Solve {
-                for kw in ["CLAVE-AES-128BIT", "SECRETO-AES-256-BITS-RUST-STUDIO", "000102030405060708090A0B0C0D0E0F", "PASSWORD12345678"] {
-                    let kl = aes_key_len_from_param(kw, param);
-                    let kb = parse_key_bytes(kw, kl, &b"AES-CIPHER-STUDIO-256BIT-DEFAULT"[..kl]);
-                    try_keys.push((format!("Diccionario '{kw}'"), kb));
+                let mut words: Vec<String> = session_keys();
+                for &kw in WORDLIST_DB {
+                    if !kw.is_empty() && !words.iter().any(|w| w == kw) {
+                        words.push(kw.to_owned());
+                    }
+                }
+                for kw in words {
+                    let hex_cand = kw.strip_prefix("0x").or_else(|| kw.strip_prefix("0X")).unwrap_or(&kw);
+                    if hex_cand.chars().all(|c| c.is_ascii_hexdigit()) && matches!(hex_cand.len(), 32 | 48 | 64) {
+                        let kl = hex_cand.len() / 2;
+                        let kb = parse_key_bytes(&kw, kl, &b"AES-CIPHER-STUDIO-256BIT-DEFAULT"[..kl]);
+                        try_keys.push((format!("BD '{kw}' ({}b)", kl * 8), kb));
+                    } else {
+                        for kl in [16usize, 24, 32] {
+                            let kb = parse_key_bytes(&kw, kl, &b"AES-CIPHER-STUDIO-256BIT-DEFAULT"[..kl]);
+                            try_keys.push((format!("BD '{kw}' ({}b)", kl * 8), kb));
+                        }
+                    }
                 }
             }
             let mut ranked = Vec::new();
@@ -1039,8 +1108,15 @@ pub(crate) fn run_aes(action: Action, text: &str, key: &str, param: &str) -> Res
                     pt_pad.extend_from_slice(&res);
                 }
                 if let Ok(pt) = pkcs7_unpad(&pt_pad, 16) {
-                    let txt = bytes_to_readable(&pt);
-                    ranked.push((lbl, txt.clone(), score_text(&txt), snaps));
+                    if action == Action::Decrypt {
+                        let txt = bytes_to_readable(&pt);
+                        ranked.push((lbl, txt.clone(), score_text(&txt), snaps));
+                        break;
+                    } else if let Ok(txt) = std::str::from_utf8(&pt)
+                        && is_clean_plaintext(txt)
+                    {
+                        ranked.push((lbl, txt.to_owned(), score_text(txt), snaps));
+                    }
                 }
             }
             if ranked.is_empty() {
@@ -1153,20 +1229,51 @@ fn crack_md5(target_hex: &str) -> Option<String> {
     if target.len() != 32 || !target.chars().all(|c| c.is_ascii_hexdigit()) {
         return None;
     }
-    for word in [
-        "", "abc", "message digest", "123456", "password", "admin", "hola", "secreto",
-        "clave", "rust", "ataque", "qwerty", "letmein", "test", "cipher", "madrid",
-        "espana", "tesoro", "amanecer", "hola mundo", "ATAQUE AL AMANECER", "1234",
-        "12345", "12345678", "0000", "root", "user", "demo", "md5", "crypto",
-    ] {
+    for s in session_preimages() {
+        if md5_hex(s.as_bytes()).0 == target {
+            return Some(s);
+        }
+    }
+    for &word in WORDLIST_DB {
         if md5_hex(word.as_bytes()).0 == target {
             return Some(word.to_owned());
         }
+        let lower = word.to_ascii_lowercase();
+        if lower != word && md5_hex(lower.as_bytes()).0 == target {
+            return Some(lower);
+        }
+        let upper = word.to_ascii_uppercase();
+        if upper != word && md5_hex(upper.as_bytes()).0 == target {
+            return Some(upper);
+        }
     }
+    // Fuerza bruta numerica PINs 4 digitos (0000..9999) y numeros 0..50000
     for pin in 0..10000u32 {
         let s = format!("{pin:04}");
         if md5_hex(s.as_bytes()).0 == target {
             return Some(s);
+        }
+    }
+    for num in 0..=50000u32 {
+        let s = num.to_string();
+        if md5_hex(s.as_bytes()).0 == target {
+            return Some(s);
+        }
+    }
+    // Cadenas cortas 1..=3 letras minusculas (a..zzz)
+    for c1 in b'a'..=b'z' {
+        if md5_hex(&[c1]).0 == target {
+            return Some((c1 as char).to_string());
+        }
+        for c2 in b'a'..=b'z' {
+            if md5_hex(&[c1, c2]).0 == target {
+                return Some(format!("{}{}", c1 as char, c2 as char));
+            }
+            for c3 in b'a'..=b'z' {
+                if md5_hex(&[c1, c2, c3]).0 == target {
+                    return Some(format!("{}{}{}", c1 as char, c2 as char, c3 as char));
+                }
+            }
         }
     }
     None
@@ -1208,16 +1315,7 @@ pub(crate) fn run_md5(action: Action, text: &str) -> Result<CipherOutput, Cipher
                 ],
             })
         }
-        Action::Decrypt => Ok(CipherOutput {
-            cipher: String::new(),
-            action: String::new(),
-            result: "Hash unidireccional (no invertible)".into(),
-            explanation: "MD5 es una funcion resumen criptografica unidireccional: comprime cualquier entrada en 128 bits. Usa 'Resolver / Crackear' para buscar preimagenes por diccionario y PINs 0000-9999.".into(),
-            candidates: Vec::new(),
-            grid: None,
-            meta: Vec::new(),
-        }),
-        Action::Solve => {
+        Action::Decrypt | Action::Solve => {
             let trimmed = text.trim();
             if trimmed.len() == 32 && trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
                 if let Some(found) = crack_md5(trimmed) {
@@ -1226,7 +1324,7 @@ pub(crate) fn run_md5(action: Action, text: &str) -> Result<CipherOutput, Cipher
                         cipher: String::new(),
                         action: String::new(),
                         result: found.clone(),
-                        explanation: format!("Preimagen MD5 encontrada en diccionario / fuerza bruta PIN en Rust: '{found}'."),
+                        explanation: format!("Preimagen MD5 encontrada en la base de datos interna / fuerza bruta Rust: '{found}'."),
                         candidates: vec![Candidate {
                             label: "Coincidencia exacta MD5".into(),
                             text: found,
@@ -1249,7 +1347,18 @@ pub(crate) fn run_md5(action: Action, text: &str) -> Result<CipherOutput, Cipher
                     cipher: String::new(),
                     action: String::new(),
                     result: String::new(),
-                    explanation: "El hash MD5 no coincide con el diccionario ni con PINs 0000..9999.".into(),
+                    explanation: "Hash MD5 no encontrado en la BD integrada (palabras ES/EN, PINs 0000-9999, 0..50000 y 1-3 letras).".into(),
+                    candidates: Vec::new(),
+                    grid: None,
+                    meta: Vec::new(),
+                });
+            }
+            if action == Action::Decrypt {
+                return Ok(CipherOutput {
+                    cipher: String::new(),
+                    action: String::new(),
+                    result: "Pega un hash MD5 de 32 caracteres hexadecimales".into(),
+                    explanation: "Para buscar una preimagen MD5, pega los 32 caracteres hexadecimales del hash.".into(),
                     candidates: Vec::new(),
                     grid: None,
                     meta: Vec::new(),

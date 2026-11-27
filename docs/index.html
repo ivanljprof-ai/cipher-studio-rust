@@ -1057,7 +1057,7 @@
           },
           {
             id: "md5", name: "MD5 (Hash 128-bit)", era: "1992 · RFC 1321", badge: "#5",
-            desc: "Función resumen de 128 bits en 64 pasos. Calcula el digest + efecto avalancha, o crackea hashes débiles por diccionario y PIN 0000-9999.",
+            desc: "Función resumen de 128 bits en 64 pasos. Calcula el digest + avalancha, o crackea hashes con BD integrada (palabras ES/EN, PINs 0000–9999, 0–50000 y 1–3 letras).",
             keyLabel: null, paramLabel: null
           }
         ]
@@ -1467,7 +1467,7 @@
     const textEnc = new TextEncoder();
     const textDec = new TextDecoder();
 
-    const WASM_URL = "./cipher.wasm?v=3";
+    const WASM_URL = "./cipher.wasm?v=4";
     const isStaticHost = /github\.io|vercel\.app|netlify\.app|pages\.dev/.test(location.hostname) || location.protocol === "file:";
 
     async function initWasmFallback() {
